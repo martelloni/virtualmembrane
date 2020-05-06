@@ -125,7 +125,7 @@ void Triangular2DMesh::ApplyMask(MaskFnT mask_fn) {
             CKtoXY_(c+1, k+1 - column_is_even, x, y);
             result.set(5, mask_fn(x, y));
         }
-        SetM_(mesh_mask_, c, k, result);
+        SetM_(mesh_mask_, c, k, static_cast<uint32_t>(result.to_ulong()));
     });
 }
 
