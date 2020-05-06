@@ -1,4 +1,5 @@
 #include <iostream>
+#include "Triangular2DMesh.hpp"
 
 
 int main(int argc, char **argv) {
@@ -8,6 +9,13 @@ int main(int argc, char **argv) {
     }
     std::cout << "\n";
 
+    Triangular2DMesh::Properties properties {
+        70.f,
+        50.f,
+        5.f,
+    };
+    char *meshmem = new char[Triangular2DMesh::GetMemSize(properties)];
+    Triangular2DMesh mesh(properties, meshmem);
     
     return 0;
 }
