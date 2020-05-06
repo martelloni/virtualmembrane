@@ -58,6 +58,9 @@ Triangular2DMesh::Triangular2DMesh(Properties &p, void * mem) :
     meshv_[2] = meshv_[0] + pi_.total_size;
     // Fourth V mesh - even indexes as int
     mesh_mask_ = static_cast<uint32_t>(meshv_[2] + 1);
+    // Apply default mask
+    ApplyMask(nullptr);
+    // Apply initial state
     Reset();
 
 }
@@ -71,32 +74,50 @@ void Triangular2DMesh::Reset() {
     float *v_z2 = VHist_(2);
 
     // Set all current and previous meshes to 0
-    FOREACH_MESH_POINT(
+    FOREACH_MESH_POINT({
         // Clear all masks
-        SetV_(v, c, k, 0);
-        SetV_(v_z1, c, k, 0);
-        SetV_(v_z2, c, k, 0);
-    );
+        SetM_(v, c, k, 0);
+        SetM_(v_z1, c, k, 0);
+        SetM_(v_z2, c, k, 0);
+    });
 }
 
 
 void Triangular2DMesh::ApplyMask(FormatMaskFn_type mask_fn) {
+
     float x, y;
-    FOREACH_MESH_POINT(
+
+    // Default mask (for internal use): just check for mesh boundary
+    if (nullptr == mask_fn) {
+        mask_fn = [&p_](float x, float y) {
+            return static_cast<bool>((x >= 0 && x < p_.x__mm) &&
+                (y >= 0 && y < p_.y__mm));
+        };
+    }
+
+    FOREACH_MESH_POINT({
         CKtoXY_(c, k, x, y);
         // If point itself is outside the mask, then it shouldn't
         // receive any data
         bool result = std::bitmask(0);
         if (mask_fn(x, y)) {
+            unsigned int column_is_even = !(c & 0x1);
             // Otherwise, choose correct boundary function based on
             // how many points in hexagon lie within the mask
             // And build a bitmask from it.
-            // Bit 1: c-1, k (top left)
-            // Bit 2: c-1, k+1 (top right)
-            // Bit 3: c, k-1 (left)
-            // Bit 4: c, k+1 (right)
-            // Bit 5: c+1, k (bottom left)
-            // Bit 5: c+1, k+1 (bottom right)
+            // Bit 0: (c-1, k) for odd cols, (c-1, k-1) for even cols (top left)
+            result.set(0, mask_fn(CKtoXY_(c-1, k - column_is_even)));
+            // Bit 1: (c-1, k+1) for odd cols, (c-1, k) for even cols (top right)
+            result.set(1, mask_fn(CKtoXY_(c-1, k+1 - column_is_even)));
+            // Bit 2: c, k-1 (left)
+            result.set(0, mask_fn(CKtoXY_(c, k-1)));
+            // Bit 3: c, k+1 (right)
+            result.set(0, mask_fn(CKtoXY_(c, k+1)));
+            // Bit 4: (c+1, k) for odd cols, (c+1, k-1) for even cols (bottom left)
+            result.set(0, mask_fn(CKtoXY_(c+1, k - column_is_even)));
+            // Bit 5: (c+1, k+1) for odd cols, (c+1, k) for even cols  (bottom right)
+            result.set(0, mask_fn(CKtoXY_(c+1, k+1 - column_is_even)));
         }
-    );
+        SetM_(mesh_mask_, c, k, result);
+    });
 }

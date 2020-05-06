@@ -54,14 +54,22 @@ class Triangular2DMesh {
 
     static void GetInternalProperties(Properties &p,
         PropertiesInternal &pi_);
-    static __attribute__((always_inline)) float GetV_(float *v,
+    template<typename T_>
+    static __attribute__((always_inline)) T_ GetM_(T_ *v,
         unsigned int c, unsigned int k) {
         return v[c][2 * k + (c & 0x1)];
     }
-    static __attribute__((always_inline)) void SetV_(float *v,
-        unsigned int c, unsigned int k, float value) {
+    template<typename T_>
+    static __attribute__((always_inline)) void SetM_(T_ *v,
+        unsigned int c, unsigned int k, T_ value) {
         v[c][2 * k + (c & 0x1)] = value;
     }
+    template float GetM_(float *v, unsigned int c, unsigned int k);
+    template void SetM_(float *v, unsigned int c, unsigned int k, float value);
+    template uint32_t GetM_(uint32_t *v,
+        unsigned int c, unsigned int k);
+    template void SetM_(uint32_t *v, unsigned int c,
+        unsigned int k, uint32_t value);
     __attribute__((always_inline)) float *VHist_(unsigned int z) {
         unsigned int index = (meshv_offset_ + z);
         while (index >= 3) {
