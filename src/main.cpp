@@ -1,6 +1,8 @@
+#if !defined(PYTHON_WRAPPER)
+
+
 #include <iostream>
 #include "Triangular2DMesh.hpp"
-
 
 int main(int argc, char **argv) {
     std::cout << "Testing the toolchain...\n";
@@ -19,3 +21,5 @@ int main(int argc, char **argv) {
     
     return 0;
 }
+
+#endif  // !defined(PYTHON_WRAPPER)

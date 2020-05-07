@@ -4,8 +4,11 @@
         {
             "type": "shell",
             "label": "C/C++: cpp build active file",
-            "command": "ssh",
+            "command": "sshpass",
             "args": [
+                "-p",
+                "notimeforsecurity",
+                "ssh",
                 "-o",
                 "StrictHostKeyChecking=no",
                 "root@localhost",

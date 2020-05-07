@@ -8,7 +8,7 @@
         "name": "(gdb) Pipe Launch",
         "type": "cppdbg",
         "request": "launch",
-        "program": "/src/main",
+        "program": "main",
         "args": [],
         "stopAtEntry": true,
         "cwd": "/src",
@@ -16,8 +16,11 @@
         "externalConsole": false,
         "pipeTransport": {
             "debuggerPath": "/usr/bin/gdb",
-            "pipeProgram": "/usr/bin/ssh",
+            "pipeProgram": "/usr/bin/sshpass",
             "pipeArgs": [
+                "-p",
+                "notimeforsecurity",
+                "ssh",
                 "-o",
                 "StrictHostKeyChecking=no",
                 "root@localhost",
