@@ -12,18 +12,6 @@
 #include "Triangular2DMesh.hpp"
 
 
-/**
- * @brief Iterate over mesh points: when iterating over rows,
- * even rows have one fewer element.
- * 
- */
-#define FOREACH_MESH_POINT(expr) \
-    for (unsigned int c = 0; c < pi_.y_size; c++) { \
-        for (unsigned int k = 0; \
-            k < ((pi_.x_size << 1) + !(c & 0x1)); \
-            k++) { expr } }
-
-
 void Triangular2DMesh::GetInternalProperties(
     Properties &p, Properties_internal_ &pi_) {
 
@@ -34,11 +22,16 @@ void Triangular2DMesh::GetInternalProperties(
     pi_.x_size = x_size + !(x_size & 0x1);
     pi_.y_size = y_size + (y_size & 0x1);
     pi_.total_size = pi_.x_size * pi_.y_size;
+    // C and K are columns and rows respectively: rows are interleaved,
+    // columns aren't.
+    pi_.c_size = pi_.y_size;
+    pi_.k_size = (pi_.x_size >> 1) + 1;
+    pi_.total_size_ck = pi_.c_size * pi_.k_size;
 }
 
 
 size_t Triangular2DMesh::GetMemSize(
-    Triangular2DMesh::Properties &p) {
+    Triangular2DMesh::Properties p) {
 
     Properties_internal_ pi;
     GetInternalProperties(p, pi);
@@ -49,9 +42,16 @@ size_t Triangular2DMesh::GetMemSize(
 }
 
 
-Triangular2DMesh::Triangular2DMesh(Properties &p, void *mem) :
-    p_(p) {
+Triangular2DMesh::Triangular2DMesh(
+    Triangular2DMesh::Properties p, void *mem) {
+    Init_(p, mem);
+}
 
+
+
+void Triangular2DMesh::Init_(Properties p, void *mem) {
+
+    p_ = p;
     GetInternalProperties(p, pi_);
     // Stagger the mesh pointers:
     // First V mesh - odd indexes
@@ -71,6 +71,7 @@ Triangular2DMesh::Triangular2DMesh(Properties &p, void *mem) :
     Reset();
 
 }
+
 
 void Triangular2DMesh::Reset() {
 

@@ -18,16 +18,18 @@
 #include <cmath>
 #include <bitset>
 
+
 /**
  * @brief Iterate over mesh points: when iterating over rows,
  * even rows have one fewer element.
  * 
  */
 #define FOREACH_MESH_POINT(expr) \
-    for (unsigned int c = 0; c < pi_.y_size; c++) { \
+    for (unsigned int c = 0; c < pi_.c_size; c++) { \
         for (unsigned int k = 0; \
-            k < ((pi_.x_size << 1) + !(c & 0x1)); \
+            k < ((pi_.k_size) - (c & 0x1)); \
             k++) { expr } }
+
 
 static_assert(sizeof(float) == sizeof(uint32_t),
     "Float needs to be exactly 32 bit for this code to work");
@@ -43,8 +45,8 @@ class Triangular2DMesh {
         float spatial_res__mm;
     };
 
-    static size_t GetMemSize(Properties &p);
-    Triangular2DMesh(Properties &p, void *mem);
+    static size_t GetMemSize(Properties p);
+    Triangular2DMesh(Properties p, void *mem);
     void Reset();
     template <typename MaskFnT>
     void ApplyMask(MaskFnT mask_fn);
@@ -57,6 +59,9 @@ class Triangular2DMesh {
         unsigned int x_size;
         unsigned int y_size;
         unsigned int total_size;
+        unsigned int c_size;
+        unsigned int k_size;
+        unsigned int total_size_ck;
     };
     Properties p_;
     Properties_internal_ pi_;
@@ -64,6 +69,8 @@ class Triangular2DMesh {
     unsigned int meshv_offset_;
     uint32_t *mesh_mask_;
 
+    Triangular2DMesh() {};
+    void Init_(Properties p, void *mem);
     static void GetInternalProperties(Properties &p,
         Properties_internal_ &pi_);
     template<typename T_>
@@ -138,7 +145,5 @@ template uint32_t Triangular2DMesh::GetM_(uint32_t *v,
 template void Triangular2DMesh::SetM_(uint32_t *v, unsigned int c,
     unsigned int k, uint32_t value);
 
-
-#undef FOREACH_MESH_POINT
 
 #endif

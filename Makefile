@@ -45,7 +45,7 @@ BOOST_LIB_LOCATION := /usr/local/lib
 BOOST_LIB_FILE := boost_python38
 BOOST_NUMPY_FILE := boost_numpy38
 
-python: CFLAGS = -D$(PYTHON_EXT_MACRO)
+python: CFLAGS += -D$(PYTHON_EXT_MACRO)
 python: CInc += -I$(BOOST_INC) -I$(PYTHON_INC) 
 python: CLinkFlags = -shared -Wl,-soname,$@ -Wl,-rpath,$(BOOST_LIB_LOCATION) -L$(BOOST_LIB_LOCATION) -l$(BOOST_LIB_FILE) -l$(BOOST_NUMPY_FILE)
 
