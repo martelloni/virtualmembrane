@@ -40,7 +40,7 @@ PYTHON_VERSION := 3.8
 PYTHON_INC := /usr/include/python$(PYTHON_VERSION)
 # Change to location of B+= oost library (either local or system-wide)
 BOOST_INC := /usr/include
-BOOST_LIB_LOCATION := /usr/lib/x86_64-linux-gnu
+BOOST_LIB_LOCATION := /usr/local/lib
 # Change to names of libboost_python and libboost_numpy
 BOOST_LIB_FILE := boost_python38
 BOOST_NUMPY_FILE := boost_numpy38

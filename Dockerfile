@@ -10,9 +10,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set up C++ build environment
 RUN apt-get update && apt-get install -y \
     gcc g++ gdb make \
-    python3-numpy python3-scipy python3-matplotlib jupyter-notebook \
-    libboost-python-dev libboost-numpy-dev libboost-dev \
-    libboost-system-dev libboost-program-options-dev
+    python3-numpy python3-scipy python3-matplotlib jupyter-notebook
+
+WORKDIR /boost
+RUN wget https://dl.bintray.com/boostorg/release/1.73.0/source/boost_1_73_0.tar.bz2
+RUN tar xjf boost_1_73_0.tar.bz2
+WORKDIR /boost/boost_1_73_0
+RUN ./bootstrap.sh
+RUN ./b2 install
 
 # Setup GDB debug over SSH
 #RUN apt-get install -y \
