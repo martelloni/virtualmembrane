@@ -6,7 +6,7 @@ PYTHON_LIB_NAME=DSPPythonWrapper
 # Test executable target name
 TARGET_NAME=main
 
-### C++ TEST EXECUTABLE ###
+### Common/default options ###
 
 # Add here any (more) source folders
 SRC_DIR ?= ./src
@@ -38,16 +38,29 @@ PYTHON_EXT_MACRO=PYTHON_WRAPPER
 PYTHON_VERSION := 3.8
 # Change to own Python's path (system path, NOT venv)
 PYTHON_INC := /usr/include/python$(PYTHON_VERSION)
-# Change to location of B+= oost library (either local or system-wide)
+# Change to location of Boost library (either local or system-wide)
 BOOST_INC := /usr/include
-BOOST_LIB_LOCATION := /usr/local/lib
+BOOST_LIB_LOCATION := /usr/lib/x86_64-linux-gnu
 # Change to names of libboost_python and libboost_numpy
 BOOST_LIB_FILE := boost_python38
 BOOST_NUMPY_FILE := boost_numpy38
 
+
+### CATCH2 UNIT TESTS ###
+
+# Where is Catch2?
+CATCH2_HEADER_LOCATION := /catch2
+# Name of the #define guard
+CATCH2_BUILD_FLAG := CATCH2_TEST
+
+
 python: CFLAGS += -D$(PYTHON_EXT_MACRO)
 python: CInc += -I$(BOOST_INC) -I$(PYTHON_INC) 
 python: CLinkFlags = -shared -Wl,-soname,$@ -Wl,-rpath,$(BOOST_LIB_LOCATION) -L$(BOOST_LIB_LOCATION) -l$(BOOST_LIB_FILE) -l$(BOOST_NUMPY_FILE)
+
+test: CInc += -I$(CATCH2_HEADER_LOCATION)
+test: CFLAGS += -D$(CATCH2_BUILD_FLAG)
+test: $(TARGET_NAME)
 
 PHONY: all
 all: $(TARGET_NAME)

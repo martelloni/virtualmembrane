@@ -1,25 +1,29 @@
 #if !defined(PYTHON_WRAPPER)
 
 
-#include <iostream>
+#if defined(CATCH2_TEST)
+
+
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
+
+
+// All tested classes are friends, yay!
+#define private public
+
+
 #include "Triangular2DMesh.hpp"
 
-int main(int argc, char **argv) {
-    std::cout << "Testing the toolchain...\n";
-    for (unsigned int n = 0; n < 15; n++) {
-        std::cout << n << ", ";
-    }
-    std::cout << "\n";
 
-    Triangular2DMesh::Properties properties {
-        70.f,
-        50.f,
-        5.f,
-    };
-    char *meshmem = new char[Triangular2DMesh::GetMemSize(properties)];
-    Triangular2DMesh mesh(properties, meshmem);
-    
-    return 0;
+TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
+    using mesh = Triangular2DMesh;
+
+    mesh::Properties p { 21.3f, 19.98f, 5.f };
+    size_t meshsize = mesh::GetMemSize(p);
+    REQUIRE(meshsize > 0);
 }
+
+
+#endif  // defined(CATCH2_TEST)
 
 #endif  // !defined(PYTHON_WRAPPER)

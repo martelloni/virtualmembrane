@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cd /src && make
+cd /src && make clean && make test

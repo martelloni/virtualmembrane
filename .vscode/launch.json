@@ -10,7 +10,7 @@
         "request": "launch",
         "program": "main",
         "args": [],
-        "stopAtEntry": true,
+        "stopAtEntry": false,
         "cwd": "/src",
         "environment": [],
         "externalConsole": false,
