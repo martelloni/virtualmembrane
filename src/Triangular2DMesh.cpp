@@ -36,7 +36,7 @@ size_t Triangular2DMesh::GetMemSize(
     Properties_internal_ pi;
     GetInternalProperties(p, pi);
     // Multiply by number of meshes needed
-    unsigned int num_size_by_meshes = pi.total_size * 2;
+    unsigned int num_size_by_meshes = pi.total_size * kNMeshes;
     // Return number of bytes
     return num_size_by_meshes * sizeof(float);
 }
@@ -54,14 +54,13 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
     p_ = p;
     GetInternalProperties(p, pi_);
     // Stagger the mesh pointers:
-    // First V mesh - odd indexes
-    meshv_[0] = static_cast<float *>(mem);
-    // Second V mesh - even indexes
-    meshv_[1] = meshv_[0] + 1;
-    // Third V mesh - next mesh group
-    meshv_[2] = meshv_[0] + pi_.total_size;
-    // Fourth V mesh - even indexes as int
-    mesh_mask_ = reinterpret_cast<uint32_t *>(meshv_[2] + 1);
+    for (unsigned int n = 0; n < kNWaveguides; n++) {
+        meshVCurrMem_[n] = static_cast<float *>(mem) + pi_.total_size * n;
+        meshVHistMem_[n] = meshVCurrMem_[n] + 1;
+    }
+    // Junction mesh and mask mesh
+    meshVJunc_ = meshVCurrMem_[kNWaveguides - 1] + pi_.total_size;
+    mesh_mask_ = reinterpret_cast<uint32_t *>(meshVJunc_ + 1);
     // Apply default mask: all points inside the mesh
     ApplyMask([&](float x_, float y_) {
         return static_cast<bool>((x_ >= 0 && x_ < p_.x__mm) &&
@@ -76,17 +75,17 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
 void Triangular2DMesh::Reset() {
 
     // Reset mesh offset to initial position
-    meshv_offset_ = 0;
-    float *v = VHist_(0);
-    float *v_z1 = VHist_(1);
-    float *v_z2 = VHist_(2);
+    VCurr_ = meshVCurrMem_;
+    VHist_ = meshVHistMem_;
 
     // Set all current and previous meshes to 0
     FOREACH_MESH_POINT({
-        // Clear all masks
-        SetM_(v, c, k, 0.f);
-        SetM_(v_z1, c, k, 0.f);
-        SetM_(v_z2, c, k, 0.f);
+        // Clear all meshes
+        for (unsigned int n = 0; n < kNWaveguides; n++) {
+            SetM_(meshVCurrMem_[n], c, k, 0.f);
+            SetM_(meshVHistMem_[n], c, k, 0.f);
+        }
+        SetM_(meshVJunc_, c, k, 0.f);
     });
 }
 

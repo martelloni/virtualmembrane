@@ -28,7 +28,16 @@
     for (unsigned int c = 0; c < pi_.c_size; c++) { \
         for (unsigned int k = 0; \
             k < ((pi_.k_size) - (c & 0x1)); \
-            k++) { expr } }
+            k++) { \
+            unsigned int column_is_even = !(c & 0x1); \
+            expr } }
+
+#define kNE_C_K    c-1, k+1 - column_is_even
+#define kE_C_K    c, k+1
+#define kSE_C_K    c+1, k+1 - column_is_even
+#define kSW_C_K    c+1, k - column_is_even
+#define kW_C_K    c, k-1
+#define kNW_C_K    c-1, k - column_is_even
 
 
 static_assert(sizeof(float) == sizeof(uint32_t),
@@ -53,8 +62,19 @@ class Triangular2DMesh {
     void Process(float *input, float *output, unsigned int n_samples);
 
  protected:
-
+    enum WaveguideIndex_ {
+        kNE,
+        kE,
+        kSE,
+        kSW,
+        kW,
+        kNW,
+        kNWaveguides,
+    };
     static constexpr float kSqrt3Over2 = std::sqrt(3.f) / 2.f;
+    static constexpr unsigned int kNVMeshes = kNWaveguides * 2 + 1;
+    static constexpr unsigned int kNMaskMeshes = 1;
+    static constexpr unsigned int kNMeshes = kNVMeshes + kNMaskMeshes;
     struct Properties_internal_ {
         unsigned int x_size;
         unsigned int y_size;
@@ -65,8 +85,11 @@ class Triangular2DMesh {
     };
     Properties p_;
     Properties_internal_ pi_;
-    float *meshv_[3];
-    unsigned int meshv_offset_;
+    float *meshVCurrMem_[kNWaveguides];
+    float *meshVHistMem_[kNWaveguides];
+    float **VCurr_;
+    float **VHist_;
+    float *meshVJunc_;
     uint32_t *mesh_mask_;
 
     Triangular2DMesh() {};
@@ -82,13 +105,6 @@ class Triangular2DMesh {
     __attribute__((always_inline)) void SetM_(T_ *v,
         unsigned int c, unsigned int k, T_ value) {
         v[c * pi_.x_size + 2 * k + (c & 0x1)] = value;
-    }
-    __attribute__((always_inline)) float *VHist_(unsigned int z) {
-        unsigned int index = (meshv_offset_ + z);
-        while (index >= 3) {
-            index -= 3;
-        }
-        return meshv_[index];
     }
     __attribute__((always_inline)) void CKtoXY_(unsigned int c,
         unsigned int k, float &x, float &y) {
@@ -107,30 +123,29 @@ void Triangular2DMesh::ApplyMask(MaskFnT mask_fn) {
         CKtoXY_(c, k, x, y);
         // If point itself is outside the mask, then it shouldn't
         // receive any data
-        std::bitset<6> result(0);
+        std::bitset<kNWaveguides> result(0);
         if (mask_fn(x, y)) {
-            unsigned int column_is_even = !(c & 0x1);
             // Otherwise, choose correct boundary function based on
             // how many points in hexagon lie within the mask
             // And build a bitmask from it.
-            // Bit 0: (c-1, k) for odd cols, (c-1, k-1) for even cols (top left)
-            CKtoXY_(c-1, k - column_is_even, x, y);
-            result.set(0, mask_fn(x, y));
-            // Bit 1: (c-1, k+1) for odd cols, (c-1, k) for even cols (top right)
-            CKtoXY_(c-1, k+1 - column_is_even, x, y);
-            result.set(1, mask_fn(x, y));
-            // Bit 2: c, k-1 (left)
-            CKtoXY_(c, k-1, x, y);
-            result.set(2, mask_fn(x, y));
-            // Bit 3: c, k+1 (right)
-            CKtoXY_(c, k+1, x, y);
-            result.set(3, mask_fn(x, y));
-            // Bit 4: (c+1, k) for odd cols, (c+1, k-1) for even cols (bottom left)
-            CKtoXY_(c+1, k - column_is_even, x, y);
-            result.set(4, mask_fn(x, y));
-            // Bit 5: (c+1, k+1) for odd cols, (c+1, k) for even cols  (bottom right)
-            CKtoXY_(c+1, k+1 - column_is_even, x, y);
-            result.set(5, mask_fn(x, y));
+            // Bit 0: (c-1, k+1) for odd cols, (c-1, k) for even cols (top right)
+            CKtoXY_(kNE_C_K, x, y);
+            result.set(kNE, mask_fn(x, y));
+            // Bit 1: c, k+1 (right)
+            CKtoXY_(kE_C_K, x, y);
+            result.set(kE, mask_fn(x, y));
+            // Bit 2: (c+1, k+1) for odd cols, (c+1, k) for even cols  (bottom right)
+            CKtoXY_(kSE_C_K, x, y);
+            result.set(kSE, mask_fn(x, y));
+            // Bit 3: (c+1, k) for odd cols, (c+1, k-1) for even cols (bottom left)
+            CKtoXY_(kSW_C_K, x, y);
+            result.set(kSW, mask_fn(x, y));
+            // Bit 4: c, k-1 (left)
+            CKtoXY_(kW_C_K, x, y);
+            result.set(kNW, mask_fn(x, y));
+            // Bit 5: (c-1, k) for odd cols, (c-1, k-1) for even cols (top left)
+            CKtoXY_(kNW_C_K, x, y);
+            result.set(kW, mask_fn(x, y));
         }
         SetM_(mesh_mask_, c, k, static_cast<uint32_t>(result.to_ulong()));
     });
