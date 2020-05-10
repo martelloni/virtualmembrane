@@ -10,6 +10,7 @@
  */
 
 #include "Triangular2DMesh.hpp"
+#include <cassert>
 
 
 void Triangular2DMesh::GetInternalProperties(
@@ -89,3 +90,107 @@ void Triangular2DMesh::Reset() {
     });
 }
 
+
+void Triangular2DMesh::SetSource(float x, float y) {
+    
+    CKCoords_ source = XYtoCK_(x, y);
+    assert(source.c < pi_.c_size);
+    assert(source.k < pi_.k_size);
+    // Get mask and assert it's in a point that exists and receives signal
+    unsigned int source_mask = GetM_(mesh_mask_, source.c, source.k);
+    assert(source_mask != 0);  // Is source point outside mesh mask?
+    source_ = source;
+}
+
+
+void Triangular2DMesh::SetPickup(float x, float y) {
+    
+    CKCoords_ pickup = XYtoCK_(x, y);
+    assert(pickup.c < pi_.c_size);
+    assert(pickup.k < pi_.k_size);
+    // Get mask and assert it's in a point that exists and receives signal
+    unsigned int pickup_mask = GetM_(mesh_mask_, pickup.c, pickup.k);
+    assert(pickup_mask != 0);  // Is pickup point outside mesh mask?
+    pickup_ = pickup;
+}
+
+
+float Triangular2DMesh::ProcessSample(bool input_present, float input) {
+
+    float output = 0;
+
+    // FOREACH_MESH_POINT expanded (fights with the X-Macro below)
+    for (unsigned int c = 0; c < pi_.c_size; c++) {
+        for (unsigned int k = 0;
+            k < ((pi_.k_size) - (c & 0x1));
+            k++) {
+            unsigned int column_is_even = !(c & 0x1);
+
+        // Bit of X-Macro'ing: This will expand a macro that defines X for all
+        // adjacent points. (thank you preprocessor!)
+        #define ON_ALL_ADJACENT_POINTS    X(NE) X(E) X(SE) X(SW) X(W)
+
+            // Get mask
+            std::bitset<kNWaveguides> mask(GetM_(mesh_mask_, c, k));
+
+            // Scattering equation
+            float scatter_coeff = 2 / mask.count();
+            float scatter_sum = 0;
+        #define ADD_TO_SCATTER_SUM(POINT)    \
+            if (mask.test( k##POINT )) {     \
+                scatter_sum += GetM_(VHist_[ k##POINT ], k##POINT##_C_K);    \
+            }
+        #define X    ADD_TO_SCATTER_SUM
+
+            ON_ALL_ADJACENT_POINTS
+
+        #undef X
+        #undef ADD_TO_SCATTER_SUM
+            scatter_sum *= scatter_coeff;
+            SetM_(meshVJunc_, c, k, scatter_sum);
+
+            // Junction output
+            if (input_present && c == source_.c && k == source_.k) {
+                // Source point - use input
+            #define INJECT_SOURCE(POINT)    \
+                if (mask.test( k##POINT )) {    \
+                    SetM_(VCurr_[ k##POINT ], k##POINT##_C_K, input);    \
+                }
+            #define X    INJECT_SOURCE
+
+                ON_ALL_ADJACENT_POINTS
+
+            #undef X
+            #undef INJECT_SOURCE
+            } else {
+                // Not a source point - use incoming waves
+            #define COMPUTE_OUTGOING_WAVE(POINT)    \
+                if (mask.test( k##POINT )) {    \
+                    float junc_out = scatter_sum -    \
+                        GetM_(VHist_[ k##POINT ], k##POINT##_C_K);    \
+                    SetM_(VCurr_[ k##POINT ], k##POINT##_C_K, junc_out);    \
+                }
+            #define X    COMPUTE_OUTGOING_WAVE
+
+                ON_ALL_ADJACENT_POINTS
+
+            #undef X
+            #undef COMPUTE_OUTGOING_WAVE
+            }
+
+            // If listener, store output
+            if (c == pickup_.c && k == pickup_.k) {
+                output = scatter_sum;
+            }
+
+        #undef ON_ALL_ADJACENT_POINTS
+        }
+    }
+
+    // Swap buffers (current->history)
+    float **tmp = VHist_;
+    VHist_ = VCurr_;
+    VCurr_ = tmp;
+
+    return output;
+}

@@ -31,10 +31,12 @@ class Triangular2DMesh_py : public Triangular2DMesh {
     }
 
     ~Triangular2DMesh_py() {
+
         delete mesh_mem_;
     }
 
     np::ndarray GetMeshCoordinates() {
+
         p::tuple sizetuple = p::make_tuple(pi_.c_size, pi_.k_size, 2);
         np::ndarray output = np::empty(sizetuple,
             np::dtype::get_builtin<float>());
@@ -52,10 +54,17 @@ class Triangular2DMesh_py : public Triangular2DMesh {
     }
 
     np::ndarray GetV(unsigned int index) {
+
         p::tuple sizetuple = p::make_tuple(pi_.c_size, pi_.k_size);
         np::ndarray output = np::empty(sizetuple,
             np::dtype::get_builtin<float>());
+        float *data = reinterpret_cast<float *>(output.get_data());
         // Copy V values across all (c, k) points
+        FOREACH_MESH_POINT({
+            data[c * pi_.c_size + k] = GetM_(meshVJunc_, c, k);
+        });
+
+        return output;
     }
 
  protected:
@@ -74,10 +83,15 @@ BOOST_PYTHON_MODULE(DSPPythonWrapper)
     // Define functions here
 
     // Define classes here
-    class_<Triangular2DMesh_py>("Triangular2DMesh",
+    using mesh = Triangular2DMesh_py;
+    class_<mesh>("Triangular2DMesh",
         init<float, float, float>())
         .def("GetMeshCoordinates",
-            &Triangular2DMesh_py::GetMeshCoordinates);
+            &mesh::GetMeshCoordinates)
+        .def("GetV", &mesh::GetV)
+        .def("SetSource", &mesh::SetSource)
+        .def("SetPickup", &mesh::SetPickup)
+        .def("ProcessSample", &mesh::ProcessSample);
 }
 
 #endif

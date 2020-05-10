@@ -29,7 +29,7 @@
         for (unsigned int k = 0; \
             k < ((pi_.k_size) - (c & 0x1)); \
             k++) { \
-            unsigned int column_is_even = !(c & 0x1); \
+            __attribute__((unused)) unsigned int column_is_even = !(c & 0x1); \
             expr } }
 
 #define kNE_C_K    c-1, k+1 - column_is_even
@@ -59,9 +59,12 @@ class Triangular2DMesh {
     void Reset();
     template <typename MaskFnT>
     void ApplyMask(MaskFnT mask_fn);
-    void Process(float *input, float *output, unsigned int n_samples);
+    float ProcessSample(bool input_present, float input);
+    void SetSource(float x, float y);
+    void SetPickup(float x, float y);
 
  protected:
+
     enum WaveguideIndex_ {
         kNE,
         kE,
@@ -83,6 +86,10 @@ class Triangular2DMesh {
         unsigned int k_size;
         unsigned int total_size_ck;
     };
+    struct CKCoords_ {
+        unsigned int c;
+        unsigned int k;
+    };
     Properties p_;
     Properties_internal_ pi_;
     float *meshVCurrMem_[kNWaveguides];
@@ -91,6 +98,8 @@ class Triangular2DMesh {
     float **VHist_;
     float *meshVJunc_;
     uint32_t *mesh_mask_;
+    CKCoords_ source_;
+    CKCoords_ pickup_;
 
     Triangular2DMesh() {};
     void Init_(Properties p, void *mem);
@@ -111,6 +120,12 @@ class Triangular2DMesh {
         y = static_cast<float>(c) * kSqrt3Over2 * p_.spatial_res__mm;
         x = static_cast<float>(k) * p_.spatial_res__mm +
             (p_.spatial_res__mm) * static_cast<float>(c & 0x1); 
+    }
+    __attribute__((always_inline)) CKCoords_ XYtoCK_(float x, float y) {
+        CKCoords_ out;
+        out.c = y / (kSqrt3Over2 * p_.spatial_res__mm);
+        out.k = (x - p_.spatial_res__mm * 0.5 * (out.c & 0x1)) / p_.spatial_res__mm;
+        return out;
     }
 };
 
