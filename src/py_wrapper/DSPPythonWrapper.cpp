@@ -46,8 +46,8 @@ class Triangular2DMesh_py : public Triangular2DMesh {
             float x;
             float y;
             CKtoXY_(c, k, x, y);
-            data[(c * pi_.c_size + k) * 2] = x;
-            data[(c * pi_.c_size + k) * 2 + 1] = y;
+            data[(c * pi_.k_size + k) * 2] = x;
+            data[(c * pi_.k_size + k) * 2 + 1] = y;
         });
 
         return output;
@@ -61,7 +61,7 @@ class Triangular2DMesh_py : public Triangular2DMesh {
         float *data = reinterpret_cast<float *>(output.get_data());
         // Copy V values across all (c, k) points
         FOREACH_MESH_POINT({
-            data[c * pi_.c_size + k] = GetM_(meshVJunc_, c, k);
+            data[c * pi_.k_size + k] = GetM_(meshVJunc_, c, k);
         });
 
         return output;

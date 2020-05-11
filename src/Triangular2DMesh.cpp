@@ -68,6 +68,8 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
             (y_ >= 0 && y_ < p_.y__mm));
     });
     // Apply initial state
+    SetSource(p.x__mm * 0.5, p.y__mm * 0.5);
+    SetPickup(0, 0);
     Reset();
 
 }

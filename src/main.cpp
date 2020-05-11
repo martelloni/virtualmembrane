@@ -60,7 +60,26 @@ TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
 
 
 TEST_CASE( "Set source and pickup", "[Triangular2DMesh]" ) {
+    using mesh = Triangular2DMesh;
 
+    mesh::Properties p {
+        54.9f,  // mm width
+        27.5f,  // mm height
+        5.f };  // mm resolution
+    char *mem = new char[mesh::GetMemSize(p)];
+    mesh m(p, mem);
+
+    // Set pretty arbitrary source and pickup points
+    m.SetSource(23.5, 19.1);
+    m.SetPickup(0.18, 1.2);
+
+    CHECK(m.source_.c == 4);
+    CHECK(m.source_.k == 11);
+    CHECK(m.pickup_.c == 0);
+    CHECK(m.pickup_.k == 0);
+
+    // Cleanup
+    delete mem;   
 }
 
 
