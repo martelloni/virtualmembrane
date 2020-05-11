@@ -30,8 +30,9 @@ TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
     unsigned int meshsize_y = 8;
     unsigned int meshsize = meshsize_x * meshsize_y;
     unsigned int c_size = 8;
-    unsigned int k_size = 12;
-    unsigned int meshsize_ck = c_size * k_size;
+    unsigned int k_size_even = 12;
+    unsigned int k_size_odd = 11;
+    unsigned int meshsize_ck = c_size * k_size_even - (c_size >> 1);
     size_t expected_memsize = sizeof(float) * meshsize * 14;
     
     // Test important static properties
@@ -45,14 +46,15 @@ TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
     CHECK(m.pi_.y_size == meshsize_y);
     CHECK(m.pi_.total_size == meshsize);
     CHECK(m.pi_.c_size == c_size);
-    CHECK(m.pi_.k_size == k_size);
+    CHECK(m.pi_.k_size_even == k_size_even);
+    CHECK(m.pi_.k_size_odd == k_size_odd);
     CHECK(m.pi_.total_size_ck == meshsize_ck);
 
     // Test default source and pickup
     CHECK(m.source_.c <= c_size);
-    CHECK(m.source_.k <= k_size - (m.source_.c & 0x1));
+    CHECK(m.source_.k <= k_size_even - (m.source_.c & 0x1));
     CHECK(m.pickup_.c <= c_size);
-    CHECK(m.pickup_.k <= k_size - (m.pickup_.c & 0x1));
+    CHECK(m.pickup_.k <= k_size_even - (m.pickup_.c & 0x1));
 
     // Cleanup
     delete mem;
@@ -74,7 +76,7 @@ TEST_CASE( "Set source and pickup", "[Triangular2DMesh]" ) {
     m.SetPickup(0.18, 1.2);
 
     CHECK(m.source_.c == 4);
-    CHECK(m.source_.k == 11);
+    CHECK(m.source_.k == 4);
     CHECK(m.pickup_.c == 0);
     CHECK(m.pickup_.k == 0);
 

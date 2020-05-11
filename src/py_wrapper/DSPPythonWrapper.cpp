@@ -36,18 +36,20 @@ class Triangular2DMesh_py : public Triangular2DMesh {
     }
 
     np::ndarray GetMeshCoordinates() {
-
-        p::tuple sizetuple = p::make_tuple(pi_.c_size, pi_.k_size, 2);
+        
+        p::tuple sizetuple = p::make_tuple(pi_.total_size_ck, 2);
         np::ndarray output = np::empty(sizetuple,
             np::dtype::get_builtin<float>());
         float *data = reinterpret_cast<float *>(output.get_data());
+
         // Resolve XY coordinates of every (c, k) point in the mesh
+        unsigned int flat_n = 0;
         FOREACH_MESH_POINT({
             float x;
             float y;
             CKtoXY_(c, k, x, y);
-            data[(c * pi_.k_size + k) * 2] = x;
-            data[(c * pi_.k_size + k) * 2 + 1] = y;
+            data[flat_n++] = x;
+            data[flat_n++] = y;
         });
 
         return output;
@@ -55,13 +57,32 @@ class Triangular2DMesh_py : public Triangular2DMesh {
 
     np::ndarray GetV(unsigned int index) {
 
-        p::tuple sizetuple = p::make_tuple(pi_.c_size, pi_.k_size);
+        p::tuple sizetuple = p::make_tuple(pi_.total_size_ck);
         np::ndarray output = np::empty(sizetuple,
             np::dtype::get_builtin<float>());
         float *data = reinterpret_cast<float *>(output.get_data());
         // Copy V values across all (c, k) points
+        unsigned int flat_n = 0;
         FOREACH_MESH_POINT({
-            data[c * pi_.k_size + k] = GetM_(meshVJunc_, c, k);
+            data[flat_n++] = GetM_(meshVJunc_, c, k);
+        });
+
+        return output;
+    }
+
+    np::ndarray GetMask() {
+
+        p::tuple sizetuple = p::make_tuple(pi_.total_size_ck, 6);
+        np::ndarray output = np::empty(sizetuple,
+            np::dtype::get_builtin<bool>());
+        bool *data = reinterpret_cast<bool *>(output.get_data());
+        // Copy V values across all (c, k) points
+        unsigned int flat_n = 0;
+        FOREACH_MESH_POINT({
+            unsigned int maskval = GetM_(mesh_mask_, c, k);
+            std::bitset<kNWaveguides> mask(maskval);
+            for (unsigned int n = 0; n < kNWaveguides; n++)
+                data[flat_n++] = mask.test(n);
         });
 
         return output;
@@ -70,6 +91,11 @@ class Triangular2DMesh_py : public Triangular2DMesh {
  protected:
 
     float *mesh_mem_;
+
+    struct NPArrayAndData {
+        np::ndarray np;
+        float *data;
+    };
 };
 
 using namespace boost::python;
@@ -89,6 +115,7 @@ BOOST_PYTHON_MODULE(DSPPythonWrapper)
         .def("GetMeshCoordinates",
             &mesh::GetMeshCoordinates)
         .def("GetV", &mesh::GetV)
+        .def("GetMask", &mesh::GetMask)
         .def("SetSource", &mesh::SetSource)
         .def("SetPickup", &mesh::SetPickup)
         .def("ProcessSample", &mesh::ProcessSample);

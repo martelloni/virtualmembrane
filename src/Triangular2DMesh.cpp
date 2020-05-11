@@ -26,8 +26,12 @@ void Triangular2DMesh::GetInternalProperties(
     // C and K are columns and rows respectively: rows are interleaved,
     // columns aren't.
     pi_.c_size = pi_.y_size;
-    pi_.k_size = (pi_.x_size >> 1) + 1;
-    pi_.total_size_ck = pi_.c_size * pi_.k_size;
+    pi_.k_size_even = (pi_.x_size >> 1) + 1;
+    pi_.k_size_odd = (pi_.x_size >> 1);
+    pi_.n_even_k = pi_.c_size >> 1;  // C size is supposed to be even
+    pi_.n_odd_k = pi_.c_size >> 1;
+    pi_.total_size_ck = pi_.k_size_even * pi_.n_even_k
+        + pi_.k_size_odd * pi_.n_odd_k;
 }
 
 
@@ -97,7 +101,7 @@ void Triangular2DMesh::SetSource(float x, float y) {
     
     CKCoords_ source = XYtoCK_(x, y);
     assert(source.c < pi_.c_size);
-    assert(source.k < pi_.k_size);
+    assert(source.k < (source.c & 0x1) ? pi_.k_size_odd : pi_.k_size_even);
     // Get mask and assert it's in a point that exists and receives signal
     unsigned int source_mask = GetM_(mesh_mask_, source.c, source.k);
     assert(source_mask != 0);  // Is source point outside mesh mask?
@@ -109,7 +113,7 @@ void Triangular2DMesh::SetPickup(float x, float y) {
     
     CKCoords_ pickup = XYtoCK_(x, y);
     assert(pickup.c < pi_.c_size);
-    assert(pickup.k < pi_.k_size);
+    assert(pickup.k < (pickup.c & 0x1) ? pi_.k_size_odd : pi_.k_size_even);
     // Get mask and assert it's in a point that exists and receives signal
     unsigned int pickup_mask = GetM_(mesh_mask_, pickup.c, pickup.k);
     assert(pickup_mask != 0);  // Is pickup point outside mesh mask?
@@ -123,10 +127,10 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
 
     // FOREACH_MESH_POINT expanded (fights with the X-Macro below)
     for (unsigned int c = 0; c < pi_.c_size; c++) {
+        unsigned int column_is_even = !(c & 0x1);
         for (unsigned int k = 0;
-            k < ((pi_.k_size) - (c & 0x1));
+            k < ((pi_.k_size_odd) + column_is_even);
             k++) {
-            unsigned int column_is_even = !(c & 0x1);
 
         // Bit of X-Macro'ing: This will expand a macro that defines X for all
         // adjacent points. (thank you preprocessor!)

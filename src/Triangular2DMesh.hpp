@@ -26,10 +26,10 @@
  */
 #define FOREACH_MESH_POINT(expr) \
     for (unsigned int c = 0; c < pi_.c_size; c++) { \
+        __attribute__((unused)) unsigned int column_is_even = !(c & 0x1); \
         for (unsigned int k = 0; \
-            k < ((pi_.k_size) - (c & 0x1)); \
+            k < ((pi_.k_size_odd) + column_is_even); \
             k++) { \
-            __attribute__((unused)) unsigned int column_is_even = !(c & 0x1); \
             expr } }
 
 #define kNE_C_K    c-1, k+1 - column_is_even
@@ -83,7 +83,10 @@ class Triangular2DMesh {
         unsigned int y_size;
         unsigned int total_size;
         unsigned int c_size;
-        unsigned int k_size;
+        unsigned int k_size_even;
+        unsigned int k_size_odd;
+        unsigned int n_even_k;
+        unsigned int n_odd_k;
         unsigned int total_size_ck;
     };
     struct CKCoords_ {
@@ -119,7 +122,7 @@ class Triangular2DMesh {
         unsigned int k, float &x, float &y) {
         y = static_cast<float>(c) * kSqrt3Over2 * p_.spatial_res__mm;
         x = static_cast<float>(k) * p_.spatial_res__mm +
-            (p_.spatial_res__mm) * static_cast<float>(c & 0x1); 
+            (p_.spatial_res__mm * 0.5f) * static_cast<float>(c & 0x1);
     }
     __attribute__((always_inline)) CKCoords_ XYtoCK_(float x, float y) {
         CKCoords_ out;
