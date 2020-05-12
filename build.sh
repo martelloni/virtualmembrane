@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cd /src && make clean && make python
+cd /src && make clean && make test

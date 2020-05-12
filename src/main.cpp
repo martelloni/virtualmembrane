@@ -107,6 +107,7 @@ TEST_CASE(  "Process Gaussian impulse", "[Triangular2DMesh]" ) {
 
     for (unsigned int n = 0; n < impulse_length; n++) {
         result[n] = m.ProcessSample(true, impulse[n]);
+        // Check *((m).VHist_[0])@(m).pi_.total_size_ck in debugger
         CHECK(!std::isnan(result[n]));
     }
 

@@ -88,6 +88,36 @@ class Triangular2DMesh_py : public Triangular2DMesh {
         return output;
     }
 
+    np::ndarray GetSource() {
+
+        p::tuple sizetuple = p::make_tuple(2);
+        np::ndarray output = np::empty(sizetuple,
+            np::dtype::get_builtin<float>());
+        float *data = reinterpret_cast<float *>(output.get_data());
+
+        float x, y;
+        CKtoXY_(source_.c, source_.k, x, y);
+        data[0] = x;
+        data[1] = y;
+
+        return output;
+    }
+
+    np::ndarray GetPickup() {
+
+        p::tuple sizetuple = p::make_tuple(2);
+        np::ndarray output = np::empty(sizetuple,
+            np::dtype::get_builtin<float>());
+        float *data = reinterpret_cast<float *>(output.get_data());
+
+        float x, y;
+        CKtoXY_(pickup_.c, pickup_.k, x, y);
+        data[0] = x;
+        data[1] = y;
+
+        return output;
+    }
+
  protected:
 
     float *mesh_mem_;
@@ -113,6 +143,8 @@ BOOST_PYTHON_MODULE(DSPPythonWrapper)
         .def("GetMask", &mesh::GetMask)
         .def("SetSource", &mesh::SetSource)
         .def("SetPickup", &mesh::SetPickup)
+        .def("GetSource", &mesh::GetSource)
+        .def("GetPickup", &mesh::GetPickup)
         .def("ProcessSample", &mesh::ProcessSample);
 }
 
