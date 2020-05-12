@@ -160,10 +160,10 @@ void Triangular2DMesh::ApplyMask(MaskFnT mask_fn) {
             result.set(kSW, mask_fn(x, y));
             // Bit 4: c, k-1 (left)
             CKtoXY_(kW_C_K, x, y);
-            result.set(kNW, mask_fn(x, y));
+            result.set(kW, mask_fn(x, y));
             // Bit 5: (c-1, k) for odd cols, (c-1, k-1) for even cols (top left)
             CKtoXY_(kNW_C_K, x, y);
-            result.set(kW, mask_fn(x, y));
+            result.set(kNW, mask_fn(x, y));
         }
         SetM_(mesh_mask_, c, k, static_cast<uint32_t>(result.to_ulong()));
     });

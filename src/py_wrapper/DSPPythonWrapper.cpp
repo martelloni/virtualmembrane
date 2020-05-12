@@ -55,7 +55,7 @@ class Triangular2DMesh_py : public Triangular2DMesh {
         return output;
     }
 
-    np::ndarray GetV(unsigned int index) {
+    np::ndarray GetV() {
 
         p::tuple sizetuple = p::make_tuple(pi_.total_size_ck);
         np::ndarray output = np::empty(sizetuple,
@@ -91,11 +91,6 @@ class Triangular2DMesh_py : public Triangular2DMesh {
  protected:
 
     float *mesh_mem_;
-
-    struct NPArrayAndData {
-        np::ndarray np;
-        float *data;
-    };
 };
 
 using namespace boost::python;
