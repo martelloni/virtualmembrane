@@ -138,9 +138,14 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
 
             // Get mask
             std::bitset<kNWaveguides> mask(GetM_(mesh_mask_, c, k));
+            unsigned int n_junction_points = mask.count();
+            if (n_junction_points == 0) {
+                // No waveguides to see here, move along...
+                continue;
+            }
 
             // Scattering equation
-            float scatter_coeff = 2 / mask.count();
+            float scatter_coeff = 2 / n_junction_points;
             float scatter_sum = 0;
         #define ADD_TO_SCATTER_SUM(POINT)    \
             if (mask.test( k##POINT )) {     \

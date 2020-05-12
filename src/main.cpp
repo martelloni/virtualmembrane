@@ -15,10 +15,10 @@
 
 
 #include "Triangular2DMesh.hpp"
+using mesh = Triangular2DMesh;
 
 
 TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
-    using mesh = Triangular2DMesh;
 
     // Mesh with these properties:
     mesh::Properties p {
@@ -62,7 +62,6 @@ TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
 
 
 TEST_CASE( "Set source and pickup", "[Triangular2DMesh]" ) {
-    using mesh = Triangular2DMesh;
 
     mesh::Properties p {
         54.9f,  // mm width
@@ -81,14 +80,15 @@ TEST_CASE( "Set source and pickup", "[Triangular2DMesh]" ) {
     CHECK(m.pickup_.k == 0);
 
     // Cleanup
-    delete mem;   
+    delete mem;
 }
 
 
 TEST_CASE(  "Process Gaussian impulse", "[Triangular2DMesh]" ) {
 
     // Impulse imported from PythonValidation.ipynb
-    float impulse[21] = {
+    unsigned int impulse_length = 21;
+    float impulse[impulse_length] = {
         0.01137871167519538, 0.026633939280853638, 0.057003245030845216, 0.11155412024665476, 
         0.19961515645360556, 0.32660533403633385, 0.488624112788967, 0.6684183720941176, 
         0.8360720857424218, 0.956226842945176, 1.0, 0.956226842945176, 
@@ -96,6 +96,22 @@ TEST_CASE(  "Process Gaussian impulse", "[Triangular2DMesh]" ) {
         0.19961515645360556, 0.11155412024665476, 0.057003245030845216, 0.026633939280853638, 
         0.01137871167519538
     };
+    float result[impulse_length];
+    // Mesh with these properties:
+    mesh::Properties p {
+        54.9f,  // mm width
+        27.5f,  // mm height
+        5.f };  // mm resolution
+    char *mem = new char[mesh::GetMemSize(p)];
+    mesh m(p, mem);
+
+    for (unsigned int n = 0; n < impulse_length; n++) {
+        result[n] = m.ProcessSample(true, impulse[n]);
+        CHECK(!std::isnan(result[n]));
+    }
+
+    // Cleanup
+    delete mem;
 }
 
 #endif  // defined(CATCH2_TEST)
