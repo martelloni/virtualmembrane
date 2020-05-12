@@ -144,6 +144,21 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
                 continue;
             }
 
+            // Point source
+            if (input_present && c == source_.c && k == source_.k) {
+                // Source point - use input
+            #define INJECT_SOURCE(POINT)    \
+                if (mask.test( k##POINT )) {    \
+                    SetM_(VHist_[ k##POINT ], k##POINT##_C_K, input);    \
+                }
+            #define X    INJECT_SOURCE
+
+                ON_ALL_ADJACENT_POINTS
+
+            #undef X
+            #undef INJECT_SOURCE
+            }
+
             // Scattering equation
             float scatter_coeff = 2 / n_junction_points;
             float scatter_sum = 0;
@@ -161,33 +176,18 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
             SetM_(meshVJunc_, c, k, scatter_sum);
 
             // Junction output
-            if (input_present && c == source_.c && k == source_.k) {
-                // Source point - use input
-            #define INJECT_SOURCE(POINT)    \
-                if (mask.test( k##POINT )) {    \
-                    SetM_(VCurr_[ k##POINT ], k##POINT##_C_K, input);    \
-                }
-            #define X    INJECT_SOURCE
-
-                ON_ALL_ADJACENT_POINTS
-
-            #undef X
-            #undef INJECT_SOURCE
-            } else {
-                // Not a source point - use incoming waves
-            #define COMPUTE_OUTGOING_WAVE(POINT)    \
-                if (mask.test( k##POINT )) {    \
-                    float junc_out = scatter_sum -    \
-                        GetM_(VHist_[ k##POINT ], k##POINT##_C_K);    \
-                    SetM_(VCurr_[ k##POINT ], k##POINT##_C_K, junc_out);    \
-                }
-            #define X    COMPUTE_OUTGOING_WAVE
-
-                ON_ALL_ADJACENT_POINTS
-
-            #undef X
-            #undef COMPUTE_OUTGOING_WAVE
+        #define COMPUTE_OUTGOING_WAVE(POINT)    \
+            if (mask.test( k##POINT )) {    \
+                float junc_out = scatter_sum -    \
+                    GetM_(VHist_[ k##POINT ], k##POINT##_C_K);    \
+                SetM_(VCurr_[ k##POINT ], k##POINT##_C_K, junc_out);    \
             }
+        #define X    COMPUTE_OUTGOING_WAVE
+
+            ON_ALL_ADJACENT_POINTS
+
+        #undef X
+        #undef COMPUTE_OUTGOING_WAVE
 
             // If listener, store output
             if (c == pickup_.c && k == pickup_.k) {
