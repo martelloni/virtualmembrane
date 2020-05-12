@@ -75,7 +75,7 @@ class Triangular2DMesh {
         kNWaveguides,
     };
     static constexpr float kSqrt3Over2 = std::sqrt(3.f) / 2.f;
-    static constexpr unsigned int kNVMeshes = kNWaveguides * 2 + 1;
+    static constexpr unsigned int kNVMeshes = 2 + 1;
     static constexpr unsigned int kNMaskMeshes = 1;
     static constexpr unsigned int kNMeshes = kNVMeshes + kNMaskMeshes;
     struct Properties_internal_ {
@@ -95,10 +95,10 @@ class Triangular2DMesh {
     };
     Properties p_;
     Properties_internal_ pi_;
-    float *meshVCurrMem_[kNWaveguides];
-    float *meshVHistMem_[kNWaveguides];
-    float **VCurr_;
-    float **VHist_;
+    float *meshVCurrMem_;
+    float *meshVHistMem_;
+    float *VCurr_;
+    float *VHist_;
     float *meshVJunc_;
     uint32_t *mesh_mask_;
     CKCoords_ source_;

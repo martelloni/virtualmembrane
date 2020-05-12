@@ -137,6 +137,7 @@ BOOST_PYTHON_MODULE(DSPPythonWrapper)
     using mesh = Triangular2DMesh_py;
     class_<mesh>("Triangular2DMesh",
         init<float, float, float>())
+        .def("Reset", &mesh::Reset)
         .def("GetMeshCoordinates",
             &mesh::GetMeshCoordinates)
         .def("GetV", &mesh::GetV)

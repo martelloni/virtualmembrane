@@ -33,7 +33,7 @@ TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
     unsigned int k_size_even = 12;
     unsigned int k_size_odd = 11;
     unsigned int meshsize_ck = c_size * k_size_even - (c_size >> 1);
-    size_t expected_memsize = sizeof(float) * meshsize * 14;
+    size_t expected_memsize = sizeof(float) * meshsize * 4;
     
     // Test important static properties
     size_t memsize = mesh::GetMemSize(p);
@@ -107,7 +107,7 @@ TEST_CASE(  "Process Gaussian impulse", "[Triangular2DMesh]" ) {
 
     for (unsigned int n = 0; n < impulse_length; n++) {
         result[n] = m.ProcessSample(true, impulse[n]);
-        // Check *((m).VHist_[0])@(m).pi_.total_size_ck in debugger
+        // Check *((m).VHist_)@(m).pi_.total_size_ck in debugger
         CHECK(!std::isnan(result[n]));
     }
 

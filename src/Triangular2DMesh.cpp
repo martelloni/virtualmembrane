@@ -59,12 +59,10 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
     p_ = p;
     GetInternalProperties(p, pi_);
     // Stagger the mesh pointers:
-    for (unsigned int n = 0; n < kNWaveguides; n++) {
-        meshVCurrMem_[n] = static_cast<float *>(mem) + pi_.total_size * n;
-        meshVHistMem_[n] = meshVCurrMem_[n] + 1;
-    }
+    meshVCurrMem_ = static_cast<float *>(mem);
+    meshVHistMem_ = meshVCurrMem_ + 1;
     // Junction mesh and mask mesh
-    meshVJunc_ = meshVCurrMem_[kNWaveguides - 1] + pi_.total_size;
+    meshVJunc_ = meshVCurrMem_ + pi_.total_size;
     mesh_mask_ = reinterpret_cast<uint32_t *>(meshVJunc_ + 1);
     // Apply default mask: all points inside the mesh
     ApplyMask([&](float x_, float y_) {
@@ -88,10 +86,8 @@ void Triangular2DMesh::Reset() {
     // Set all current and previous meshes to 0
     FOREACH_MESH_POINT({
         // Clear all meshes
-        for (unsigned int n = 0; n < kNWaveguides; n++) {
-            SetM_(meshVCurrMem_[n], c, k, 0.f);
-            SetM_(meshVHistMem_[n], c, k, 0.f);
-        }
+        SetM_(meshVCurrMem_, c, k, 0.f);
+        SetM_(meshVHistMem_, c, k, 0.f);
         SetM_(meshVJunc_, c, k, 0.f);
     });
 }
@@ -149,7 +145,7 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
                 // Source point - use input
             #define INJECT_SOURCE(POINT)    \
                 if (mask.test( k##POINT )) {    \
-                    SetM_(VHist_[ k##POINT ], k##POINT##_C_K, input);    \
+                    SetM_(VHist_, k##POINT##_C_K, input);    \
                 }
             #define X    INJECT_SOURCE
 
@@ -160,11 +156,12 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
             }
 
             // Scattering equation
-            float scatter_coeff = 2 / n_junction_points;
+            float scatter_coeff = 2.f /
+                static_cast<float>(n_junction_points);
             float scatter_sum = 0;
         #define ADD_TO_SCATTER_SUM(POINT)    \
             if (mask.test( k##POINT )) {     \
-                scatter_sum += GetM_(VHist_[ k##POINT ], k##POINT##_C_K);    \
+                scatter_sum += GetM_(VHist_, k##POINT##_C_K);    \
             }
         #define X    ADD_TO_SCATTER_SUM
 
@@ -179,8 +176,8 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
         #define COMPUTE_OUTGOING_WAVE(POINT)    \
             if (mask.test( k##POINT )) {    \
                 float junc_out = scatter_sum -    \
-                    GetM_(VHist_[ k##POINT ], k##POINT##_C_K);    \
-                SetM_(VCurr_[ k##POINT ], k##POINT##_C_K, junc_out);    \
+                    GetM_(VHist_, k##POINT##_C_K);    \
+                SetM_(VCurr_, k##POINT##_C_K, junc_out);    \
             }
         #define X    COMPUTE_OUTGOING_WAVE
 
@@ -199,7 +196,7 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
     }
 
     // Swap buffers (current->history)
-    float **tmp = VHist_;
+    float *tmp = VHist_;
     VHist_ = VCurr_;
     VCurr_ = tmp;
 
