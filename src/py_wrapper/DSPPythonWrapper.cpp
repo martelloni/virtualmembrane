@@ -64,7 +64,7 @@ class Triangular2DMesh_py : public Triangular2DMesh {
         // Copy V values across all (c, k) points
         unsigned int flat_n = 0;
         FOREACH_MESH_POINT({
-            data[flat_n++] = GetM_(meshVJunc_, c, k);
+            data[flat_n++] = GetM_(junc_v_, c, k);
         });
 
         return output;

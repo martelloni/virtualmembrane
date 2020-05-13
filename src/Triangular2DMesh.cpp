@@ -59,11 +59,15 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
     p_ = p;
     GetInternalProperties(p, pi_);
     // Stagger the mesh pointers:
-    meshVCurrMem_ = static_cast<float *>(mem);
-    meshVHistMem_ = meshVCurrMem_ + 1;
+    for (unsigned int n = 0; n < kNWaveguides; n++) {
+        // First one pointing at the first element
+        travelling_v_1_[n] = reinterpret_cast<float *>(mem) + (n) * pi_.total_size;
+        // Second one pointing at the second element
+        travelling_v_2_[n] = travelling_v_1_[n] + 1;
+    }
     // Junction mesh and mask mesh
-    meshVJunc_ = meshVCurrMem_ + pi_.total_size;
-    mesh_mask_ = reinterpret_cast<uint32_t *>(meshVJunc_ + 1);
+    junc_v_ = travelling_v_1_[kNWaveguides - 1] + pi_.total_size;
+    mesh_mask_ = reinterpret_cast<uint32_t *>(junc_v_ + 1);
     // Apply default mask: all points inside the mesh
     ApplyMask([&](float x_, float y_) {
         return static_cast<bool>((x_ >= 0 && x_ < p_.x__mm) &&
@@ -80,15 +84,17 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
 void Triangular2DMesh::Reset() {
 
     // Reset mesh offset to initial position
-    VCurr_ = meshVCurrMem_;
-    VHist_ = meshVHistMem_;
+    v_curr_ = travelling_v_1_;
+    v_next_ = travelling_v_2_;
 
     // Set all current and previous meshes to 0
     FOREACH_MESH_POINT({
         // Clear all meshes
-        SetM_(meshVCurrMem_, c, k, 0.f);
-        SetM_(meshVHistMem_, c, k, 0.f);
-        SetM_(meshVJunc_, c, k, 0.f);
+        for (unsigned int n = 0; n < kNWaveguides; n++) {
+            SetM_(travelling_v_1_[n], c, k, 0.f);
+            SetM_(travelling_v_2_[n], c, k, 0.f);
+        }
+        SetM_(junc_v_, c, k, 0.f);
     });
 }
 
@@ -121,16 +127,16 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
 
     float output = 0;
 
-    // FOREACH_MESH_POINT expanded (fights with the X-Macro below)
+// Bit of X-Macro'ing: This will expand a macro that defines X for all
+// adjacent points. (thank you preprocessor!)
+#define ON_ALL_ADJACENT_POINTS    X(NE) X(E) X(SE) X(SW) X(W)
+
+    // FOREACH_MESH_POINT expanded by hand (fights with the X-Macros below)
     for (unsigned int c = 0; c < pi_.c_size; c++) {
         unsigned int column_is_even = !(c & 0x1);
         for (unsigned int k = 0;
             k < ((pi_.k_size_odd) + column_is_even);
             k++) {
-
-        // Bit of X-Macro'ing: This will expand a macro that defines X for all
-        // adjacent points. (thank you preprocessor!)
-        #define ON_ALL_ADJACENT_POINTS    X(NE) X(E) X(SE) X(SW) X(W)
 
             // Get mask
             std::bitset<kNWaveguides> mask(GetM_(mesh_mask_, c, k));
@@ -145,7 +151,7 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
                 // Source point - use input
             #define INJECT_SOURCE(POINT)    \
                 if (mask.test( k##POINT )) {    \
-                    SetM_(VHist_, k##POINT##_C_K, input);    \
+                    SetM_(v_curr_[ k##POINT ], c, k, input);    \
                 }
             #define X    INJECT_SOURCE
 
@@ -161,7 +167,7 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
             float scatter_sum = 0;
         #define ADD_TO_SCATTER_SUM(POINT)    \
             if (mask.test( k##POINT )) {     \
-                scatter_sum += GetM_(VHist_, k##POINT##_C_K);    \
+                scatter_sum += GetM_(v_curr_[ k##POINT ], c, k);    \
             }
         #define X    ADD_TO_SCATTER_SUM
 
@@ -170,14 +176,14 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
         #undef X
         #undef ADD_TO_SCATTER_SUM
             scatter_sum *= scatter_coeff;
-            SetM_(meshVJunc_, c, k, scatter_sum);
+            SetM_(junc_v_, c, k, scatter_sum);
 
-            // Junction output
+            // Junction output (in-place replacement)
         #define COMPUTE_OUTGOING_WAVE(POINT)    \
             if (mask.test( k##POINT )) {    \
                 float junc_out = scatter_sum -    \
-                    GetM_(VHist_, k##POINT##_C_K);    \
-                SetM_(VCurr_, k##POINT##_C_K, junc_out);    \
+                    GetM_(v_curr_[ k##POINT ], c, k);    \
+                SetM_(v_curr_[ k##POINT ], c, k, junc_out);    \
             }
         #define X    COMPUTE_OUTGOING_WAVE
 
@@ -186,19 +192,34 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
         #undef X
         #undef COMPUTE_OUTGOING_WAVE
 
+            // Delay step
+            // Junction output (in-place replacement)
+        #define DELAY_STEP(POINT)    \
+            if (mask.test( k##POINT )) {    \
+                SetM_(v_next_[ k##POINT##_reciprocal ], k##POINT##_C_K, \
+                    GetM_(v_curr_[ k##POINT ], c, k));    \
+            }
+        #define X    DELAY_STEP
+
+            ON_ALL_ADJACENT_POINTS
+        
+        #undef X
+        #undef DELAY_STEP
+
             // If listener, store output
             if (c == pickup_.c && k == pickup_.k) {
                 output = scatter_sum;
             }
 
-        #undef ON_ALL_ADJACENT_POINTS
-        }
-    }
+        }  // for k
+    }  // for c
 
-    // Swap buffers (current->history)
-    float *tmp = VHist_;
-    VHist_ = VCurr_;
-    VCurr_ = tmp;
+#undef ON_ALL_ADJACENT_POINTS
+
+    // Swap buffers (next->current)
+    float **tmp = v_next_;
+    v_next_ = v_curr_;
+    v_curr_ = tmp;
 
     return output;
 }

@@ -39,6 +39,12 @@
 #define kW_C_K    c, k-1
 #define kNW_C_K    c-1, k - column_is_even
 
+#define kNE_reciprocal    kSW
+#define kE_reciprocal    kW
+#define kSE_reciprocal    kNW
+#define kSW_reciprocal    kNE
+#define kW_reciprocal    kE
+#define kNW_reciprocal    kSE
 
 static_assert(sizeof(float) == sizeof(uint32_t),
     "Float needs to be exactly 32 bit for this code to work");
@@ -75,7 +81,7 @@ class Triangular2DMesh {
         kNWaveguides,
     };
     static constexpr float kSqrt3Over2 = std::sqrt(3.f) / 2.f;
-    static constexpr unsigned int kNVMeshes = 2 + 1;
+    static constexpr unsigned int kNVMeshes = kNWaveguides*2 + 1;  // + Junction
     static constexpr unsigned int kNMaskMeshes = 1;
     static constexpr unsigned int kNMeshes = kNVMeshes + kNMaskMeshes;
     struct Properties_internal_ {
@@ -95,35 +101,40 @@ class Triangular2DMesh {
     };
     Properties p_;
     Properties_internal_ pi_;
-    float *meshVCurrMem_;
-    float *meshVHistMem_;
-    float *VCurr_;
-    float *VHist_;
-    float *meshVJunc_;
+    float *travelling_v_1_[kNWaveguides];
+    float *travelling_v_2_[kNWaveguides];
+    float *junc_v_;
     uint32_t *mesh_mask_;
+    float ** v_curr_;
+    float ** v_next_;
     CKCoords_ source_;
     CKCoords_ pickup_;
 
     Triangular2DMesh() {};
+
     void Init_(Properties p, void *mem);
     static void GetInternalProperties(Properties &p,
         Properties_internal_ &pi_);
+
     template<typename T_>
     __attribute__((always_inline)) T_ GetM_(T_ *v,
         unsigned int c, unsigned int k) {
         return v[c * pi_.x_size + 2 * k + (c & 0x1)];
     }
+
     template<typename T_>
     __attribute__((always_inline)) void SetM_(T_ *v,
         unsigned int c, unsigned int k, T_ value) {
         v[c * pi_.x_size + 2 * k + (c & 0x1)] = value;
     }
+
     __attribute__((always_inline)) void CKtoXY_(unsigned int c,
         unsigned int k, float &x, float &y) {
         y = static_cast<float>(c) * kSqrt3Over2 * p_.spatial_res__mm;
         x = static_cast<float>(k) * p_.spatial_res__mm +
             (p_.spatial_res__mm * 0.5f) * static_cast<float>(c & 0x1);
     }
+
     __attribute__((always_inline)) CKCoords_ XYtoCK_(float x, float y) {
         CKCoords_ out;
         out.c = y / (kSqrt3Over2 * p_.spatial_res__mm);
