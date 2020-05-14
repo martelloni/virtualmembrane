@@ -13,6 +13,9 @@
 #include <cassert>
 
 
+float Triangular2DMesh::kSqrt3Over2 = std::sqrt(3.f) / 2.f;
+
+
 void Triangular2DMesh::GetInternalProperties(
     Properties &p, Properties_internal_ &pi_) {
 
@@ -105,6 +108,7 @@ void Triangular2DMesh::SetSource(float x, float y) {
     assert(source.c < pi_.c_size);
     assert(source.k < (source.c & 0x1) ? pi_.k_size_odd : pi_.k_size_even);
     // Get mask and assert it's in a point that exists and receives signal
+    __attribute__((unused))  // Bela compiler moans assertions aren't "use"
     unsigned int source_mask = GetM_(mesh_mask_, source.c, source.k);
     assert(source_mask != 0);  // Is source point outside mesh mask?
     source_ = source;
@@ -117,6 +121,7 @@ void Triangular2DMesh::SetPickup(float x, float y) {
     assert(pickup.c < pi_.c_size);
     assert(pickup.k < (pickup.c & 0x1) ? pi_.k_size_odd : pi_.k_size_even);
     // Get mask and assert it's in a point that exists and receives signal
+    __attribute__((unused))  // Bela compiler moans assertions aren't "use"
     unsigned int pickup_mask = GetM_(mesh_mask_, pickup.c, pickup.k);
     assert(pickup_mask != 0);  // Is pickup point outside mesh mask?
     pickup_ = pickup;

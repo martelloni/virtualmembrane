@@ -80,10 +80,10 @@ class Triangular2DMesh {
         kNW,
         kNWaveguides,
     };
-    static constexpr float kSqrt3Over2 = std::sqrt(3.f) / 2.f;
     static constexpr unsigned int kNVMeshes = kNWaveguides*2 + 1;  // + Junction
     static constexpr unsigned int kNMaskMeshes = 1;
     static constexpr unsigned int kNMeshes = kNVMeshes + kNMaskMeshes;
+    static float kSqrt3Over2;
     struct Properties_internal_ {
         unsigned int x_size;
         unsigned int y_size;
