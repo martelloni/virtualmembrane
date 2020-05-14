@@ -12,6 +12,8 @@
 #include <libraries/Scope/Scope.h>
 
 #include "DetectHit.hpp"
+#include "Triangular2DMesh.hpp"
+using meshcl = Triangular2DMesh;  // Because typing it every time was...
 
 /* Global variables for current implementation */
 
@@ -32,6 +34,8 @@ static const unsigned int kLEDCountLength = 100;  // Samples
 
 /* Internal objects needed */
 DetectHit hit;
+char *meshmem;
+meshcl *mesh;
 
 // Oscilloscope for debugging
 Scope gScope;
@@ -63,6 +67,16 @@ bool setup(BelaContext *context, void *userData)
     hit.SetHPFCoef(0.9996439371675712, -0.9996439371675712, -0.9992878743351423);
     hit.SetLPFCoef(0.007073522215301396, 0.007073522215301396, -0.9858529555693972);
 
+    // Mesh setup
+    meshcl::Properties p {
+        200.0,  // width mm
+        150.0,  // height mm
+        36.58996994711342,  // spatial sampling mm
+    };
+    // Mesh allocation and creation
+    meshmem = new char[meshcl::GetMemSize(p)];
+    mesh = new meshcl(p, meshmem);
+
 	return true;
 }
 
@@ -82,9 +96,6 @@ void render(BelaContext *context, void *userData)
 		float Y_reading = analogRead(context, smp >> 1, kAnalogAccelY);
 		float Z_reading = analogRead(context, smp >> 1, kAnalogAccelZ);
 
-        DetectHit::CurrentState accel_signal = hit.ProcessSample(Z_reading);
-
-		gScope.log(Z_reading, accel_signal.value, 0);
 
 		// Control code
 		float pot_reading = analogRead(context, smp >> 1, kAnalogPot);
@@ -92,7 +103,13 @@ void render(BelaContext *context, void *userData)
 		bool but2_reading = digitalRead(context, smp, kDigButton2) == 0;
 
 		// Audio code
-		float out = 0;
+        DetectHit::CurrentState accel_signal = hit.ProcessSample(Z_reading);
+		float out = mesh->ProcessSample(true, accel_signal.value);
+        // Mesh output seems quiiiiiiiet...
+        out *= 10.;
+
+        // Scope
+		gScope.log(Z_reading, accel_signal.value, out);
 
 		// LED code: count a few samples for each action just to make it go Ping!!!
 		if (false) {
@@ -104,7 +121,7 @@ void render(BelaContext *context, void *userData)
 		digitalWriteOnce(context, smp, kDigLED, led_count > 0);
 
 		// Prevent clipping for now, TODO sigmoid waveshaping for crunchy coolness
-		float pad_gain = 0.1;
+		float pad_gain = 1.;
 		audioWrite(context, smp, 0, out * pad_gain);
 		audioWrite(context, smp, 1, out * pad_gain);
 
@@ -117,5 +134,6 @@ void render(BelaContext *context, void *userData)
 
 void cleanup(BelaContext *context, void *userData)
 {
-	
+    delete mesh;
+	delete meshmem;
 }
