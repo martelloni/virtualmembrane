@@ -4,6 +4,7 @@
 \setstretch{1.4}
 \usepackage{relsize}
 \usepackage{amsmath}
+\usepackage{caption}
 \usepackage{subcaption}
 \usepackage{graphicx}
 \usepackage{listings}
@@ -177,13 +178,13 @@ assuming impedance is either homogeneous or infinite (no transmission).
 We can then divide the computation into a \emph{scattering equation}
 and a \emph{junction output} (after \cite{murphy2000digital}):
 
-\begin{equation}
+\begin{equation}\label{eq:scatter}
     v_{i}(nT) = \frac{2}{N}\,\sum_{k=1}^{N}v_{k+}(nT)
-\end{equation}\label{eq:scatter}
+\end{equation}
 
-\begin{equation}
+\begin{equation}\label{eq:output}
     v_{k-}(nT) = v_{i}(nT) - v_{k+}(nT) \,\,\,\,\, \mbox{for}\, k = {1 \dots N}
-\end{equation}\label{eq:output}
+\end{equation}
 
 Junctions having fewer than six waveguides will just ignore
 the directions that aren't connected to another junction point.
@@ -220,23 +221,155 @@ stable membrane, excited directly with an arbitrary audio signal
 in \cite{murphy2000digital}. The source signal is injected as incoming
 waves into a designated junction:
 
-\begin{equation}
+\begin{equation}\label{eq:inject}
     v_{k+}(nT) = \frac{y(nT)}{2}
-\end{equation}\label{eq:inject}
+\end{equation}
 
 \section{Design}
+
+The equations laid out in the previous section allow, in principle,
+the numerical implementation of any kind of topology. However,
+in addition to the memory constraints and computational constraints
+imposed by the Bela target, the triangular mesh poses non-obvious
+problems down to the memory layout and the change in coordinates
+between cartesian and \((x, l, m)\).
+
+The first stage of the implementation, in practice, requires
+access to tools such as off-line processing,
+debugging, plotting and the generation of mathematically complex
+audio test signals. We found especially important to be able to
+visualise the mesh at every iteration in a simulation.
+For this reason, most of the code has been written within an
+environment comprised of some C++ core classes, a C++ to Python
+wrapper based on
+Boost.Python\footnote{
+    This has been the theme of a past AIL workshop at QMUL, the
+    slides for which can be found here:
+    \url{https://docs.google.com/presentation/d/1FK514Me0esJG-2egqraF3FT9DIQkZYGH_I2nMmFxUXI}
+}
+and a set of validation notebooks
+written in Jupyter.
 
 \subsection{Mesh Topology}
 
 % Mapping meshes onto memory
+Rectilinear grids have an obvious mapping onto two-dimensional arrays,
+natively supported in most programming language. More complicated
+topologies require a function that maps a C++ array structure to
+the mesh's geometry coordinates, which we will call \(c, k\).
+The idea of using a flattened array structure, albeit valid
+and quite well-established, came to mind a bit too late in
+the development.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{fig/XYtoCK}
+    \caption{Mapping between two interleaved meshes and 2D array.}\label{fig:meshmap}
+\end{figure}
+
+We present a method that maps a regular C-style 2D array structure
+to a rectangular mesh topology, seen in figure \ref{fig:meshmap}.
+If we impose the constraints that the column dimension of a matrix
+must be even, and the rows must be odd, we can interleave two meshes
+of identical size in the even and odd indexes of this matrix, respectively.
+Even rows will have an odd number of mesh points, whereas odd rows
+will have an even number of them. What makes this structure work
+is that the third element of the second mesh in even rows is
+wrapped around to the next line, therefore the indexing stays
+within the required memory boundary.
+
+The following set of equations can be used to convert back and forth
+from \(c, k\) indexing and Cartesian coordinates:
+
+\begin{equation}
+    c = \frac{y}{\frac{\sqrt{3}}{2} \Delta s}
+\end{equation}
+\begin{equation}
+    y = c\,\frac{\sqrt{3}}{2} \Delta s
+\end{equation}
+\begin{equation}
+    k = \frac{x - \frac{\Delta s}{2} (c\,\mbox{mod}\,2)}{\Delta s}
+\end{equation}
+\begin{equation}
+    x = k\,\Delta s + \frac{\Delta s}{2} (c\,\mbox{mod}\,2)
+\end{equation}
 
 % Mapping geometries onto meshes
+Using this coordinate system, we can then assess whether each point
+in the mesh lies inside or outside any geometry defined in
+Cartesian coordinates. We can then choose to create a waveguide
+between two points if both of them lie within the given geometry.
+An example made whilst evaluating our mesh in the Jupyter notebook
+is shown in figure \ref{fig:jupytermesh}.
+
+\begin{figure}
+    \centering
+    \begin{subfigure}{.5\textwidth}
+      \centering
+      \includegraphics[width=.6\linewidth]{fig/meshsquare}
+      \caption{Dimensions of the grid VS required geometry.}
+      \label{fig:meshsquare}
+    \end{subfigure}%
+    \begin{subfigure}{.5\textwidth}
+      \centering
+      \includegraphics[width=.6\linewidth]{fig/meshgrid}
+      \caption{Computed mesh connections.}
+      \label{fig:meshgrid}
+    \end{subfigure}
+    \caption{Generated mesh for a rectangle of
+    width 52.21 mm, height 54.35 mm, spatial resolution 5 mm.}
+    \label{fig:jupytermesh}
+\end{figure}
+    
 
 \subsection{Processing}
 
-% 
+% Memory model for incoming V and outgoing V
+The last step needed before implementing the processing routine is
+to calculate how many values we need to store for each mesh point
+and/or for each waveguide. Following the reference implementation in
+the Sound Design Toolkit \cite{baldan2017sound}, we are going to
+use two values for each waveguide, respectively an outgoing and an
+incoming velocity value. The outgoing value
+will be reused as an incoming value in the following time iteration
+(delay step). Therefore we need a total of 13 meshes for each
+mesh point, one for each waveguide plus a record of the junction
+values that is going to be used for plotting.
+
+% Junctions as bitmask
+A fourteenth mesh is going to be created to store a bitmask
+containing the connections between a given point and its
+neighbouring point. We're going to observe Murphy's convention
+of clockwise numbering from NE to NW.
+
+Finally, we need to choose a source and a pickup point.
+At startup, the source is allocated at the centre of the
+membrane, whereas the pickup lies close to the edge of
+the default rectangular structure, as no mode is supposed to have
+a node at the corners of a shoebox shape.
+
+All these actions are implemented in the constructor for the object
+\texttt{Triangular2DMesh}: it also provides a method to externally
+allocate the memory required, which is then passed as an argument
+to the constructor.
+
+Optionally, the API allows to re-draw the mesh connections based
+upon a user-defined lambda expression evaluating the \(x, y\)
+coordinates of each mesh point. Source an pickup points can also
+be moved before or during processing.
+
+% Translate the wave equation: each step
+\texttt{ProcessSample()} implements equations
+\ref{eq:scatter}, \ref{eq:output} and \ref{eq:inject} for
+every point \(c, k\) in the mesh and swaps the two mesh pointers
+for each iteration. The outgoing values are therefore consumed
+by the neighbouring points of each junction.
 
 \subsection{Evaluation Framework}
+
+
+
+% Commands to run everything
 
 \section{Bela Implementation}
 
