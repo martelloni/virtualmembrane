@@ -12,7 +12,7 @@ TARGET_NAME=main
 SRC_DIR ?= ./src
 OBJ_DIR = ./build
 
-SRCS := $(shell find $(SRC_DIR) -name '*.s' -or -name '*.c' -or -name '*.cpp')
+SRCS := $(shell find $(SRC_DIR) -type f \( \( -name '*.s' -or -name '*.c' -or -name '*.cpp' \) ! -path '*bela*' \) )
 python: SRCS += $(shell find $(SRC_DIR) -name '$(PYTHON_LIB_NAME)*')
 OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)

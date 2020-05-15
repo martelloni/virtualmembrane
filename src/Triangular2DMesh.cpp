@@ -80,7 +80,6 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
     SetSource(p.x__mm * 0.5, p.y__mm * 0.5);
     SetPickup(0, 0);
     Reset();
-
 }
 
 
@@ -167,8 +166,7 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
             }
 
             // Scattering equation
-            float scatter_coeff = 2.f /
-                static_cast<float>(n_junction_points);
+            float scatter_coeff = 2.f / static_cast<float>(n_junction_points);
             float scatter_sum = 0;
         #define ADD_TO_SCATTER_SUM(POINT)    \
             if (mask.test( k##POINT )) {     \
