@@ -1,0 +1,297 @@
+\documentclass{article}
+\usepackage[a4paper, margin=2cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.4}
+\usepackage{relsize}
+\usepackage{amsmath}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{url}
+
+\lstset{
+  basicstyle=\ttfamily,
+  columns=fullflexible,
+}
+
+\title{Assignment 3: Real-Time Implementation of 2D
+Digital Waveguide\\
+[0.2em]\smaller{ECS7012P Music and Audio Programming}}
+\author{Andrea Martelloni}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+
+\begin{abstract}
+Sample abstract.
+\end{abstract}
+
+\section{Introduction}
+
+A specific class of digital musical instruments, or DMI, aims to
+decouple the human playing interaction and the physical response
+of the acoustic body. The instrument is thereby seen as a mute
+controller interface to a digital sound-producing device.
+This design paradigm allows the control of virtual instruments
+based on physical models. It might be seen as bizarre to choose to
+cut off the physics of an instrument, only to then try and
+reproduce them as accurately as the technology allows. However,
+the designer can then alter or augment the physics of the
+instrument arbitrarily; for example, they could map a drum
+or a set of percussions onto a guitar's body.
+
+The work presented in this report aims to cover the first steps
+in the design of such an instrument. We are going to try and
+run a virtual vibrating membrane on Bela, and control it with
+the signal coming from one axis of an accelerometer.
+
+The major challenge of this task is to
+ensure a correct implementation of the membrane's equations,
+a requirement that can prove very tricky when programming on
+an embedded target as a black box. Therefore, most of our analysis
+will be performed in simulation on standard C++ code; on-target
+evaluation will be the last step, a rather ambitious moment
+of truth at the end of the development efforts.
+
+\section{Background}
+
+\subsection{Prior Work}
+
+The numerical reproduction of percussion instruments has been
+extensively studied, all the way to advanced techniques
+modelling the non-linearities of such systems. Good surveys of
+all available techniques come from the works by
+Rossing \emph{et al.} \cite{rossing2004acoustics},
+Bilbao \cite{bilbao2009modular}
+and Mehes \emph{et al} \cite{mehes2017virtual}.
+
+Implementations of purely linear model are both less computationally
+intensive and easier to understand and implement. Two methods
+seem to have been quite successful in reproducing membranes in
+real time and are featured in working implementations of musical
+instruments: the Digital Waveguide model by Fontana and Rocchesso
+\cite{fontana1998physical} and the Transfer Function methods
+analysed in Trautmann \emph{et al.} \cite{trautmann2001physical}.
+
+The two-dimensional Digital Waveguide model is a well-established
+model that extends the principle of the Digital Waveguide,
+widely used to model tubes such as wind instruments, to a vibrating
+surface.
+The article referenced above provides a clear breakdown
+of all the continuous-time and discrete-time physics involved,
+and it provides solutions to problems such as mesh stability,
+mesh excitation, energy attenuation and modelling of air loading
+for a more accurate real-world drum reproduction.
+Thererfore, we chose to base the implementation of our project upon
+the Digital Waveguide method.
+
+A reference implementation of a Digital Waveguide mesh is already
+available in an early version
+(0.62)\footnote{\url{http://www.soundobject.org/SDT/downloads/SDT_src-062.zip}}
+of the Sound Design Toolkit \cite{baldan2017sound}.
+The topology of the mesh available in the toolkit is rectilinear;
+however the authors describe how using a triangular mesh
+optimises the dispersion error for most geometries, and especially
+for the circular membranes of drums \cite{fontana1998physical}.
+We will implement a triangular mesh
+from first principles following this
+suggestion. 
+
+\subsection{Theory}
+
+% Outline sources
+The following summary of the theory behind digital waveguides in
+a triangular mesh structure is based on \cite{fontana1998physical};
+some ideas and concepts are taken from the implementation of
+triangular membranes for room acoustics in \cite{murphy2000digital}.
+A more complete review of the whole process applied to virtual drums
+can also be found in \cite{laird2001physical}.
+
+% Waveguide basics
+\paragraph{Waveguide basics.}
+The principle of the one-dimensional waveguide comes from the well-known
+D'Alembert solution of the
+wave wave equation for the transverse velocity \(v(t, x)\),
+indicating two velocity waves travelling in opposite
+directions:
+
+\begin{equation}
+v(t, x) = v_{+}(x - ct) + v_{-}(x + ct)
+\end{equation}\label{eq:dalembert}
+
+We can assume that waves propagate following the equation above
+in ideal strings. When a number \(N\) of
+identical strings is joined
+together, we can write an equation for the transmission and
+scattering of the waves among those strings at their junction
+point \(i\):
+
+\begin{equation}
+v_{i-}(t) = \frac{2}{N}\,\sum_{k=1}^{N}v_{k+}(t)-v_{i+}(t)
+\end{equation}\label{eq:losslessj}
+
+\(v_{i-}\) being the outgoing wave from the junction, as a
+function of the incoming waves \(v_{k+}\) from the strings
+joined together.
+
+Both equations can be discretised by sampling the space
+into \(\Delta s\) spatial samples and time as \(t = nT\)
+periods:
+
+\begin{equation}
+    v(nT, x) = v_{+}(x - cnT) + v_{-}(x + cnT)
+\end{equation}\label{eq:discretewave}
+\begin{equation}
+    v_{i-}(nT) = \frac{2}{N}\,\sum_{k=1}^{N}v_{k+}(nT)-v_{i+}(nT)
+\end{equation}\label{eq:discretelosslessj}
+
+We are going to assume that the mesh is perfectly homogeneous
+(no difference in impedance in the interfaces) and the boundaries
+are perfectly rigid, that is, the wave is fully reflected back
+(\(r = 1\))
+and any point beyond the boundary will have (\(v = 0\)).
+
+% Triangular mesh equations
+
+\paragraph{Triangular mesh.}
+
+Joining six waveguides we have a structure that can effectively
+sample a two-dimensional space along directions \(x\),
+\(l = \frac{1}{2} x + \frac{\sqrt{3}}{2} y\) and
+\(m = \frac{1}{2} x - \frac{\sqrt{3}}{2} y\). Figure
+\ref{fig:coord} depicts this structure and the related coordinates.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{fig/fontanamesh}
+    \caption{Triangular mesh coordinates \cite{fontana1998physical}.}\label{fig:coord}
+\end{figure}
+
+We can then rewrite equation \ref{eq:discretelosslessj} in two
+parts and restrict the number of waveguides to a maximum of 6,
+assuming impedance is either homogeneous or infinite (no transmission).
+We can then divide the computation into a \emph{scattering equation}
+and a \emph{junction output} (after \cite{murphy2000digital}):
+
+\begin{equation}
+    v_{i}(nT) = \frac{2}{N}\,\sum_{k=1}^{N}v_{k+}(nT)
+\end{equation}\label{eq:scatter}
+
+\begin{equation}
+    v_{k-}(nT) = v_{i}(nT) - v_{k+}(nT) \,\,\,\,\, \mbox{for}\, k = {1 \dots N}
+\end{equation}\label{eq:output}
+
+Junctions having fewer than six waveguides will just ignore
+the directions that aren't connected to another junction point.
+A good convention to enumerate the coordinates of the junction
+points comes from \cite{murphy2000digital}. We will count clockwise
+from the first point at top-right: North-East, East, South-East,
+South-West, West and North-West.
+
+% Courant condition
+
+\paragraph{Constraints.}
+The digital waveguide method imposes a relationship between spatial
+and temporal sampling. When designing the mesh or even running
+an offline simulation, one can leave the speed of the medium
+\(c\) unspecified. However, in a real-time system, the temporal
+sampling period \(T\) is defined by the system, and so must be the
+medium speed. The stability of the mesh is enforced by the
+Courant condition, which in this case takes the following
+form \cite{fontana1998physical}:
+
+\begin{equation}
+\Delta x = \Delta l = \Delta m = \sqrt{2}cT
+\end{equation}\label{eq:courant}
+
+% Absorption, air loading
+
+\paragraph{Absorption, air loading, excitation.}
+The sources referenced provide a good breakdown of all the more
+advanced problems around lossy junctions, air loading in
+a cylindrical drum as a spring-mass model, excitation models.
+We will limit ourselves to the simplest case of a lossless
+stable membrane, excited directly with an arbitrary audio signal
+\(y(nT)\), using the excitation model outlined
+in \cite{murphy2000digital}. The source signal is injected as incoming
+waves into a designated junction:
+
+\begin{equation}
+    v_{k+}(nT) = \frac{y(nT)}{2}
+\end{equation}\label{eq:inject}
+
+\section{Design}
+
+\subsection{Mesh Topology}
+
+% Mapping meshes onto memory
+
+% Mapping geometries onto meshes
+
+\subsection{Processing}
+
+% 
+
+\subsection{Evaluation Framework}
+
+\section{Bela Implementation}
+
+\section{Evaluation}
+
+\subsection{Unit Tests}
+
+\subsection{Simulation}
+
+\subsection{On-Target Evaluation}
+
+\section{Conclusion}
+
+
+
+\begin{thebibliography}{9}
+
+\bibitem[Rossing, 2004]{rossing2004acoustics}
+Rossing, T.D., Yoo, J. and Morrison, A., 2004.
+Acoustics of percussion instruments: An update. Acoustical science and technology, 25(6), pp.406-412.
+
+\bibitem[Bilbao, 2009]{bilbao2009modular}
+Bilbao, S., 2009, September.
+A modular percussion synthesis environment. In Proc. of the 12th Int. Conference on Digital Audio Effects (DAFx-09), Como, Italy.
+
+\bibitem[Mehes, 2017]{mehes2017virtual}
+Mehes, S., van Walstijn, M. and Stapleton, P., 2017. Virtual-acoustic instrument design: exploring the parameter space of a string-plate model. In NIME (pp. 399-403).
+
+\bibitem[Fontana, 1998]{fontana1998physical}
+Fontana, F. and Rocchesso, D., 1998.
+\textit{Physical modeling of membranes for percussion instruments.}
+Acta Acustica united with Acustica, 84(3), pp.529-542.
+
+\bibitem[Murphy, 2000]{murphy2000digital}
+Murphy, Damian Thomas, and D. M. Howard.
+\textit{Digital waveguide mesh topologies in room acoustics modelling.}
+Diss. University of York, 2000.
+
+\bibitem[Baldan, 2017]{baldan2017sound}
+Baldan, S., Delle Monache, S. and Rocchesso, D., 2017.
+\textit{The Sound Design Toolkit.} SoftwareX, 6, pp.255-260.
+
+\bibitem[Trautmann, 2001]{trautmann2001physical}
+Trautmann, L., Petrausch, S. and Rabenstein, R., 2001, May.
+\textit{Physical modeling of drums by transfer function methods.}
+In 2001 IEEE International Conference on Acoustics,
+Speech, and Signal Processing. Proceedings
+(Cat. No. 01CH37221) (Vol. 5, pp. 3385-3388). IEEE.
+
+\bibitem[Laird, 2001]{laird2001physical}
+Laird, J.A., 2001.
+\textit{The physical modelling of drums using digital waveguides.}
+(Doctoral dissertation, University of Bristol).
+
+\end{thebibliography}
+
+
+\end{document}

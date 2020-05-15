@@ -1,5 +1,9 @@
-*.pdf
 build/
 main
 *.so
 *.wav
+*.aux
+*_latexmk
+*.fls
+*.log
+*.synctex.gz
