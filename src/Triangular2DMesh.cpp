@@ -79,6 +79,7 @@ void Triangular2DMesh::Init_(Properties p, void *mem) {
     // Apply initial state
     SetSource(p.x__mm * 0.5, p.y__mm * 0.5);
     SetPickup(0, 0);
+    SetAttenuation(0);
     Reset();
 }
 
@@ -133,7 +134,7 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
 
 // Bit of X-Macro'ing: This will expand a macro that defines X for all
 // adjacent points. (thank you preprocessor!)
-#define ON_ALL_ADJACENT_POINTS    X(NE) X(E) X(SE) X(SW) X(W)
+#define ON_ALL_ADJACENT_POINTS    X(NE) X(E) X(SE) X(SW) X(W) X(NW)
 
     // FOREACH_MESH_POINT expanded by hand (fights with the X-Macros below)
     for (unsigned int c = 0; c < pi_.c_size; c++) {
@@ -151,23 +152,30 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
             }
 
             // Point source
+            float source_v = 0;
+            float source_point_coef = 0;
             if (input_present && c == source_.c && k == source_.k) {
                 // Source point - use input
-            #define INJECT_SOURCE(POINT)    \
-                if (mask.test( k##POINT )) {    \
-                    SetM_(v_curr_[ k##POINT ], c, k, input);    \
-                }
-            #define X    INJECT_SOURCE
+            //#define INJECT_SOURCE(POINT)    \
+            //    if (mask.test( k##POINT )) {    \
+            //        float val = input;    \
+            //        SetM_(v_curr_[ k##POINT ], c, k, val);    \
+            //    }
+            //#define X    INJECT_SOURCE
 
-                ON_ALL_ADJACENT_POINTS
+            //    ON_ALL_ADJACENT_POINTS
 
-            #undef X
-            #undef INJECT_SOURCE
+            //#undef X
+            //#undef INJECT_SOURCE
+                source_v = input;
+                source_point_coef = 1.0f;
             }
 
             // Scattering equation
-            float scatter_coeff = 2.f / static_cast<float>(n_junction_points);
+            float scatter_coeff = 2.f / (static_cast<float>(n_junction_points)
+                + source_point_coef);
             float scatter_sum = 0;
+
         #define ADD_TO_SCATTER_SUM(POINT)    \
             if (mask.test( k##POINT )) {     \
                 scatter_sum += GetM_(v_curr_[ k##POINT ], c, k);    \
@@ -178,7 +186,9 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
 
         #undef X
         #undef ADD_TO_SCATTER_SUM
+            scatter_sum += source_v;
             scatter_sum *= scatter_coeff;
+            scatter_sum *= alpha_;
             SetM_(junc_v_, c, k, scatter_sum);
 
             // Junction output (in-place replacement)
@@ -225,4 +235,10 @@ float Triangular2DMesh::ProcessSample(bool input_present, float input) {
     v_curr_ = tmp;
 
     return output;
+}
+
+void Triangular2DMesh::SetAttenuation(float mu) {
+    assert(mu >= 0.f);
+    assert(mu < 1.f);
+    alpha_ = 1 - mu;
 }

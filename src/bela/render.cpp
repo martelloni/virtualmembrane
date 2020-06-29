@@ -19,15 +19,15 @@ using meshcl = Triangular2DMesh;  // Because typing it every time was...
 
 /* Board layout (same as assignment 2) */
 enum {
-	kDigButton1 = 0,
-	kDigButton2,
-	kDigLED
+    kDigButton1 = 0,
+    kDigButton2,
+    kDigLED
 };
 enum {
-	kAnalogPot = 0,
-	kAnalogAccelX,
-	kAnalogAccelY,
-	kAnalogAccelZ,
+    kAnalogPot = 0,
+    kAnalogAccelX,
+    kAnalogAccelY,
+    kAnalogAccelZ,
 };
 static const unsigned int kNButtons = 2;
 static const unsigned int kLEDCountLength = 100;  // Samples
@@ -51,17 +51,17 @@ Scope gScope;
 
 bool setup(BelaContext *context, void *userData)
 {
-	if (context->audioSampleRate != 44100.f) {
+    if (context->audioSampleRate != 44100.f) {
         // Warn if sample rate isn't supported - spatial sample rate
         // of mesh requires specific sampling rate. Multirate processing
         // is a marvellous thing but I need sleep.
         rt_printf("WARNING - Sample rate not set to 44.1 kHz!");
     }
-	// Board-related inits: pots, GPIO, scope...
-	gScope.setup(3, context->audioSampleRate);
-	pinMode(context, 0, kDigButton1, INPUT);
-	pinMode(context, 0, kDigButton2, INPUT);
-	pinMode(context, 0, kDigLED, OUTPUT);
+    // Board-related inits: pots, GPIO, scope...
+    gScope.setup(3, context->audioSampleRate);
+    pinMode(context, 0, kDigButton1, INPUT);
+    pinMode(context, 0, kDigButton2, INPUT);
+    pinMode(context, 0, kDigLED, OUTPUT);
 
     // Internal setup
     hit.SetHPFCoef(0.9996439371675712, -0.9996439371675712, -0.9992878743351423);
@@ -69,15 +69,15 @@ bool setup(BelaContext *context, void *userData)
 
     // Mesh setup
     meshcl::Properties p {
-        200.0,  // width mm
-        150.0,  // height mm
+        600.0,  // width mm
+        33.0,  // height mm
         36.58996994711342,  // spatial sampling mm
     };
     // Mesh allocation and creation
     meshmem = new char[meshcl::GetMemSize(p)];
     mesh = new meshcl(p, meshmem);
 
-	return true;
+    return true;
 }
 
 // render() is called regularly at the highest priority by the audio engine.
@@ -87,45 +87,45 @@ bool setup(BelaContext *context, void *userData)
 
 void render(BelaContext *context, void *userData)
 {
-	static int led_count = 0;  // LED used to signal hit to membrane
+    static int led_count = 0;  // LED used to signal hit to membrane
 
-	for (unsigned int smp = 0; smp < context->audioFrames; smp++) {
+    for (unsigned int smp = 0; smp < context->audioFrames; smp++) {
 
-		// Accelerometer reads
-		float X_reading = analogRead(context, smp >> 1, kAnalogAccelX);
-		float Y_reading = analogRead(context, smp >> 1, kAnalogAccelY);
-		float Z_reading = analogRead(context, smp >> 1, kAnalogAccelZ);
+        // Accelerometer reads
+        float X_reading = analogRead(context, smp >> 1, kAnalogAccelX);
+        float Y_reading = analogRead(context, smp >> 1, kAnalogAccelY);
+        float Z_reading = analogRead(context, smp >> 1, kAnalogAccelZ);
 
 
-		// Control code
-		float pot_reading = analogRead(context, smp >> 1, kAnalogPot);
-		bool but1_reading = digitalRead(context, smp, kDigButton1) == 0;
-		bool but2_reading = digitalRead(context, smp, kDigButton2) == 0;
+        // Control code
+        float pot_reading = analogRead(context, smp >> 1, kAnalogPot);
+        bool but1_reading = digitalRead(context, smp, kDigButton1) == 0;
+        bool but2_reading = digitalRead(context, smp, kDigButton2) == 0;
 
-		// Audio code
+        // Audio code
         DetectHit::CurrentState accel_signal = hit.ProcessSample(Z_reading);
-		float out = mesh->ProcessSample(true, accel_signal.value);
+        float out = mesh->ProcessSample(true, accel_signal.value);
         // Mesh output seems quiiiiiiiet...
         out *= 10.;
 
         // Scope
-		gScope.log(Z_reading, accel_signal.value, out);
+        gScope.log(Z_reading, accel_signal.value, out);
 
-		// LED code: count a few samples for each action just to make it go Ping!!!
-		if (false) {
-			led_count = kLEDCountLength;
-		}
-		if (led_count > 0) {
-			led_count--;
-		}
-		digitalWriteOnce(context, smp, kDigLED, led_count > 0);
+        // LED code: count a few samples for each action just to make it go Ping!!!
+        if (false) {
+            led_count = kLEDCountLength;
+        }
+        if (led_count > 0) {
+            led_count--;
+        }
+        digitalWriteOnce(context, smp, kDigLED, led_count > 0);
 
-		// Prevent clipping for now, TODO sigmoid waveshaping for crunchy coolness
-		float pad_gain = 1.;
-		audioWrite(context, smp, 0, out * pad_gain);
-		audioWrite(context, smp, 1, out * pad_gain);
+        // Prevent clipping for now, TODO sigmoid waveshaping for crunchy coolness
+        float pad_gain = 1.;
+        audioWrite(context, smp, 0, out * pad_gain);
+        audioWrite(context, smp, 1, out * pad_gain);
 
-	}
+    }
 }
 
 
@@ -135,5 +135,5 @@ void render(BelaContext *context, void *userData)
 void cleanup(BelaContext *context, void *userData)
 {
     delete mesh;
-	delete meshmem;
+    delete meshmem;
 }

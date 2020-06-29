@@ -146,6 +146,7 @@ BOOST_PYTHON_MODULE(DSPPythonWrapper)
         .def("SetPickup", &mesh::SetPickup)
         .def("GetSource", &mesh::GetSource)
         .def("GetPickup", &mesh::GetPickup)
+        .def("SetAttenuation", &mesh::SetAttenuation)
         .def("ProcessSample", &mesh::ProcessSample);
 }
 

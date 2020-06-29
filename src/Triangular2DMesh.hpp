@@ -18,6 +18,14 @@
 #include <cmath>
 #include <bitset>
 
+/*
+ * TODO 29/6/2020
+ * - Attenuation
+ * - Air loading filter
+ * - Arbitrary mesh geometry
+ * - SIMD and revisit array allocations/mask
+ */
+
 
 /**
  * @brief Iterate over mesh points: when iterating over rows,
@@ -68,6 +76,7 @@ class Triangular2DMesh {
     float ProcessSample(bool input_present, float input);
     void SetSource(float x, float y);
     void SetPickup(float x, float y);
+    void SetAttenuation(float mu);
 
  protected:
 
@@ -109,6 +118,7 @@ class Triangular2DMesh {
     float ** v_next_;
     CKCoords_ source_;
     CKCoords_ pickup_;
+    float alpha_;
 
     Triangular2DMesh() {};
 

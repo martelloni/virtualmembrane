@@ -1,7 +1,7 @@
 \documentclass{article}
 \usepackage[a4paper, margin=2cm]{geometry}
 \usepackage{setspace}
-\setstretch{1.4}
+%\setstretch{1.4}
 \usepackage{relsize}
 \usepackage{amsmath}
 \usepackage{caption}
@@ -26,10 +26,6 @@ Digital Waveguide\\
 
 \maketitle
 
-
-\begin{abstract}
-Sample abstract.
-\end{abstract}
 
 \section{Introduction}
 
@@ -92,7 +88,8 @@ the Digital Waveguide method.
 
 A reference implementation of a Digital Waveguide mesh is already
 available in an early version
-(0.62)\footnote{\url{http://www.soundobject.org/SDT/downloads/SDT_src-062.zip}}
+(0.62)\footnote{
+\url{http://www.soundobject.org/SDT/downloads/SDT_src-062.zip}}
 of the Sound Design Toolkit \cite{baldan2017sound}.
 The topology of the mesh available in the toolkit is rectilinear;
 however the authors describe how using a triangular mesh
@@ -367,36 +364,239 @@ by the neighbouring points of each junction.
 
 \subsection{Evaluation Framework}
 
+The simulation environment is based on an Ubuntu 20.04
+Docker container. This allows the C++ and the Python bindings
+to be built in a reliable environment without installing
+a development toolkit system-wide.
 
+The Bash script \texttt{docker\_host\_run.sh} will build, create
+and run the appropriate Docker container; an SSH port is created
+so that a remote debug session can be created via \texttt{gdb}.
+The source code is automatically mounted into the Docker container's
+file system, therefore any change will be picked up by both the
+host machine and the container.
+
+The Makefile supports target \texttt{test} to build a pure C++
+unit test suite based on
+Catch2\footnote{\url{https://github.com/catchorg/Catch2}},
+and a \texttt{python} target building a shared library
+\texttt{DSPPythonWrapper.so} that can be \texttt{import}ed
+onto Python, and will be the basis for our validation in
+Jupyter.
 
 % Commands to run everything
 
 \section{Bela Implementation}
 
+The \texttt{Triangular2DMesh} object has been embedded into
+a Bela project that interfaces with the same hardware prototype
+built for the drum machine in Assignment 2. The accelerometer
+has been reused as a transducer for low-frequency, rumble-like
+displacements that are characteristic of percussive interaction.
+Only the Z-axis (up-down) acceleration is needed.
+
+Firstly, the signal from the accelerometer has been observed
+from Bela's internal oscilloscope when the board was lying
+on a desk, and someone was tapping on the same desk next
+to the board. The resulting signal was well above the noise
+floor and a clean impulse was clearly detectable.
+
+Minimal signal conditioning has been implemented
+in the \texttt{DetectHit} class: a high-pass
+filter brings the accelerometer signal's mean to 0, then full-wave rectification
+and a low-pass filter create a positive impulse that would inject
+a controlled amount of energy onto the mesh.
+
 \section{Evaluation}
 
 \subsection{Unit Tests}
 
+\texttt{make test} builds a set of unit tests implemented in
+\texttt{main.cpp}: the purpose of those tests is to verify
+the correct allocation of memory and the correct implementation
+of the indexing routines. It is easier to debug and inspect
+the routines in a pure C++ environment: a short Gaussian impulse
+is passed to the processing function to ensure that the
+processing happens within the memory bounds and the mesh
+does not become unstable and return \texttt{Inf} or \texttt{NaN}.
+
+This is a really limited evaluation and it does not allow
+the physical validation of the formulae's implementation;
+two evaluation cases have been run in a Jupyter notebook to
+visualise the junction's pressure and analyse the resulting
+plots.
+
 \subsection{Simulation}
+
+\begin{figure}
+    \centering
+    \begin{subfigure}{.3\textwidth}
+      \centering
+      \includegraphics[width=1\linewidth]{fig/1d-sample0}
+      \caption{After 1 sample.}
+      \label{fig:1d-sample0}
+    \end{subfigure}%
+    \begin{subfigure}{.3\textwidth}
+      \centering
+      \includegraphics[width=1\linewidth]{fig/1d-sample3}
+      \caption{After 3 samples.}
+      \label{fig:1d-sample3}
+    \end{subfigure}%
+    \begin{subfigure}{.3\textwidth}
+      \centering
+      \includegraphics[width=1\linewidth]{fig/1d-sample6}
+      \caption{After 6 samples.}
+      \label{fig:1d-sample6}
+    \end{subfigure}
+    \caption{Simulation for a mesh of
+    width 52.21 mm, height 2.35 mm, spatial resolution 5 mm.}
+    \label{fig:1dcase}
+\end{figure}
+
+Perhaps the simplest case of 2D membrane is the degenerate
+case of a one-dimensional string. By setting the Y-axis to an
+amount that is lower than a full \(\Delta s\) we essentially
+obtain this structure. We can excite the structure with a
+unit impulse and we obtain the periodic reflection of that impulse
+across twelve samples for a 11-point mesh size. The impulse
+travels back and forth with no apparent loss of energy
+(figure \ref{fig:1dcase}).
+
+\begin{figure}
+    \centering
+    \begin{subfigure}{.45\textwidth}
+      \centering
+      \includegraphics[width=0.8\linewidth]{fig/2d-mesh}
+      \caption{Mesh structure.}
+      \label{fig:2d-mesh}
+    \end{subfigure}%
+    \begin{subfigure}{.45\textwidth}
+      \centering
+      \includegraphics[width=0.8\linewidth]{fig/2d-impulse}
+      \caption{Input impulse.}
+      \label{fig:2d-impulse}
+    \end{subfigure} \\
+    \begin{subfigure}{.45\textwidth}
+      \centering
+      \includegraphics[width=0.8\linewidth]{fig/2d-sample20}
+      \caption{Evaluation after 20 samples.}
+      \label{fig:2d-sample20}
+    \end{subfigure}
+    \begin{subfigure}{.45\textwidth}
+      \centering
+      \includegraphics[width=0.8\linewidth]{fig/2d-pickup}
+      \caption{Pickup signal in time and frequency (magnitude spectrum).}
+      \label{fig:2d-pickup}
+    \end{subfigure}
+    \caption{Simulation for 142x142 mm mesh, spatial resolution 5 mm.}
+    \label{fig:2dcase}
+\end{figure}
+
+The next step taken was to simulate a larger rectangular ideal
+membrane excited by a Gaussian impulse, with the expectation
+that the impulse would propagate radially to the edge
+of the membrane and it would scatter at the edges. Figure
+\ref{fig:2dcase} outlines the result: the impulse seems to create
+a circular shape around the source. The Jupyter animation follows with
+what looks like a potentially correct evolution, however
+it seems that most of the energy is dissipated really early on
+after the event's onset. This is confirmed when examining the pickup
+signal in detail \ref{fig:2d-pickup}: the signal recorded is
+a thousand times quieter than the source, it decays very rapidly
+and the spectrum also shows a certain degree of aliasing.
+
+The mesh has also been simulated with a train of Gaussian
+impulses hitting it every second at a sample rate of 44,100 Hz,
+which is supported by Bela. The simulation confirms that the
+sound of the membrane is anything but interesting! The
+processed sound is a noisy, aliased version of the input signal
+with no noticeable resonance, and sadly this process has very little
+artistic or creative value!
 
 \subsection{On-Target Evaluation}
 
-\section{Conclusion}
+The specifications of mesh that is suitable for Bela can be
+found in the second section of the Jupyter notebook used for the
+validation.
+Suitable values for \(c\) and the membrane size have been
+found by dealing with the tight upper ceiling imposed by Bela's
+computational capability: it seems that the current implementation
+can only perform the processing of
+a 7x6 point mesh at the native sampling rate.
+
+We made a first attempt with a mesh with that number of points,
+to verify its stability
+when it is controlled by the accelerometer. The system
+just shows the very unimpressive feature of boosting
+the noise floor of the accelerometer's signal. 
+
+One last attempt was made using the 1-d degenerate case,
+which showed a good amount of energy retention. Although the
+sonic outcome did not quite improve as much as expected,
+the Bela oscilloscope showed a clear modification of the
+input waveform, with the impulse being reflected back
+and forth and creating a feeble attempt at a standing wave
+(figure \ref{fig:bela}).
 
 
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{fig/bela-hit}
+    \caption{Representation of a tap from Bela's oscilloscope:
+    red line is unfiltered Z-axis signal;
+    blue line is filtered signal;
+    green line is mesh output.}\label{fig:bela}
+\end{figure}
+
+
+\section{Conclusions and Future Work}
+
+This work has successfully implemented the initial steps
+to obtain a fully working implementation of a membrane on Bela.
+The task has turned out to be very ambitious and difficult to
+correctly achieve within the allocated time frame; however
+we managed to run a simple rectangular membrane model in real-time
+on Bela that satisfies stability constraints and shows some degree
+of physical valitidy in the simulation.
+
+Further work is definitely needed in the understanding of the
+relationship between the time sampling rate and the medium speed:
+this might be key to achieving more resonating and ``interesting''
+membranes, perhaps after implementing multi-rate processing and
+oversampling on Bela. In order to progress to this stage,
+much work must be done in the mesh's processing function to
+use ARM's SIMD intrinsics. The mesh's topology lends itself very
+well to vector operations, and ARM chips usually do not
+penalise non-contiguous memory accesses.
+
+Furthermore, more in-depth validation is needed to understand
+whether the attenuation is a result of the modelling method
+or a non-obvious code bug. 1D tests could be run along \(l\)--
+and \(m\)--axis to verify that impulse propagation happens
+correctly in all directions. Modal analysis, including mode shifting
+as a result of attenuation, is also a common method to validate
+the physics of a membrane model \cite{fontana1998physical}.
+After reaching this stage, attenuation coefficients and air
+loading can be implemented and correctly validated.
 
 \begin{thebibliography}{9}
 
 \bibitem[Rossing, 2004]{rossing2004acoustics}
 Rossing, T.D., Yoo, J. and Morrison, A., 2004.
-Acoustics of percussion instruments: An update. Acoustical science and technology, 25(6), pp.406-412.
+\textit{Acoustics of percussion instruments: An update.}
+Acoustical science and technology, 25(6), pp.406-412.
 
 \bibitem[Bilbao, 2009]{bilbao2009modular}
 Bilbao, S., 2009, September.
-A modular percussion synthesis environment. In Proc. of the 12th Int. Conference on Digital Audio Effects (DAFx-09), Como, Italy.
+\textit{A modular percussion synthesis environment.}
+In Proc. of the 12th Int.
+Conference on Digital Audio Effects (DAFx-09), Como, Italy.
 
 \bibitem[Mehes, 2017]{mehes2017virtual}
-Mehes, S., van Walstijn, M. and Stapleton, P., 2017. Virtual-acoustic instrument design: exploring the parameter space of a string-plate model. In NIME (pp. 399-403).
+Mehes, S., van Walstijn, M. and Stapleton, P., 2017.
+\textit{Virtual-acoustic instrument design:
+exploring the parameter space of a string-plate model.}
+In NIME (pp. 399-403).
 
 \bibitem[Fontana, 1998]{fontana1998physical}
 Fontana, F. and Rocchesso, D., 1998.

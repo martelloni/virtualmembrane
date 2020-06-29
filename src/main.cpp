@@ -141,6 +141,31 @@ TEST_CASE(  "Process 1D impulse", "[Triangular2DMesh]" ) {
 }
 
 
+TEST_CASE( "Process 1D impulse (transversal)", "[Triangular2DMesh]" ) {
+
+    // Mesh with these properties:
+    mesh::Properties p {
+        4.5f,  // mm width
+        20.f,  // mm height
+        5.f };  // mm resolution
+    char *mem = new char[mesh::GetMemSize(p)];
+    mesh m(p, mem);
+
+    unsigned int tail = 20;
+    float result[tail + 1];
+
+    m.ProcessSample(true, 1.0f);
+    for (unsigned int n = 0; n < tail; n++) {
+        result[n+1] = m.ProcessSample(false, 0.0f);
+        // Check *((m).VHist_)@(m).pi_.total_size_ck in debugger
+        CHECK(!std::isnan(result[n]));
+    }
+
+    // Cleanup
+    delete mem;
+
+}
+
 #endif  // defined(CATCH2_TEST)
 
 #endif  // !defined(PYTHON_WRAPPER)
