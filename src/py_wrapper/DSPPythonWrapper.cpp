@@ -16,6 +16,8 @@
 #include <cassert>
 // Include user libraries here
 #include "Triangular2DMesh.hpp"
+#include "Geometries.hpp"
+#include "WrapperUtils.hpp"
 
 namespace p = boost::python;
 namespace np = boost::python::numpy;
@@ -118,6 +120,33 @@ class Triangular2DMesh_py : public Triangular2DMesh {
         return output;
     }
 
+    void MakeCircular() {
+        float radius = (p_.x__mm < p_.y__mm) ? p_.x__mm :
+            p_.x__mm;
+        radius *= 0.5;
+        ApplyMask(Geometries::CircularMembrane(radius));
+
+    }
+
+    np::ndarray ProcessVector(np::ndarray input) {
+        using W = WrapperUtils;
+
+        np::ndarray input_float = W::CheckAndConvertType<float>(input);
+        W::BufferSize size = W::CheckAndGetSize(input);
+        np::ndarray output = W::AllocateBuffer<float>(size);
+    
+        assert(size.n_channels == 1);
+        assert(size.n_samples > 0);
+        float *input_ptr = W::GetData<float>(input);
+        float *output_ptr = W::GetData<float>(output);
+        unsigned int n_samples = size.n_samples;
+        while (n_samples--) {
+            *output_ptr++ = ProcessSample(*input_ptr++, true);
+        }
+
+        return output;
+    }
+
  protected:
 
     float *mesh_mem_;
@@ -146,8 +175,10 @@ BOOST_PYTHON_MODULE(DSPPythonWrapper)
         .def("SetPickup", &mesh::SetPickup)
         .def("GetSource", &mesh::GetSource)
         .def("GetPickup", &mesh::GetPickup)
+        .def("MakeCircular", &mesh::MakeCircular)
         .def("SetAttenuation", &mesh::SetAttenuation)
-        .def("ProcessSample", &mesh::ProcessSample);
+        .def("ProcessSample", &mesh::ProcessSample)
+        .def("ProcessVector", &mesh::ProcessVector);
 }
 
 #endif

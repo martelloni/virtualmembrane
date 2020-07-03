@@ -56,7 +56,6 @@ Triangular2DMesh::Triangular2DMesh(
 }
 
 
-
 void Triangular2DMesh::Init_(Properties p, void *mem) {
 
     p_ = p;
@@ -121,7 +120,7 @@ void Triangular2DMesh::SetPickup(float x, float y) {
     assert(pickup.c < pi_.c_size);
     assert(pickup.k < (pickup.c & 0x1) ? pi_.k_size_odd : pi_.k_size_even);
     // Get mask and assert it's in a point that exists and receives signal
-    __attribute__((unused))  // Bela compiler moans assertions aren't "use"
+    __attribute__((unused))  // Bela compiler moans assertions aren't "used"
     unsigned int pickup_mask = GetM_(mesh_mask_, pickup.c, pickup.k);
     assert(pickup_mask != 0);  // Is pickup point outside mesh mask?
     pickup_ = pickup;
