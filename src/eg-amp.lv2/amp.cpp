@@ -49,9 +49,11 @@ extern "C" {
    should be defined for readability.
 */
 typedef enum {
-	AMP_GAIN   = 0,
-	AMP_INPUT  = 1,
-	AMP_OUTPUT = 2
+   AMP_ATTENUATION = 0,
+   AMP_INPUT_THRESHOLD,
+	AMP_GAIN,
+	AMP_INPUT,
+	AMP_OUTPUT
 } PortIndex;
 
 /**
@@ -62,6 +64,8 @@ typedef enum {
 */
 typedef struct {
 	// Port buffers
+   const float* attenuation;
+   const float* input_threshold;
 	const float* gain;
 	const float* input;
 	float*       output;
@@ -104,6 +108,12 @@ connect_port(LV2_Handle instance,
 	Amp* amp = (Amp*)instance;
 
 	switch ((PortIndex)port) {
+	case AMP_ATTENUATION:
+		amp->attenuation = (const float*)data;
+		break;
+	case AMP_INPUT_THRESHOLD:
+		amp->input_threshold = (const float*)data;
+		break;
 	case AMP_GAIN:
 		amp->gain = (const float*)data;
 		break;
@@ -144,7 +154,9 @@ run(LV2_Handle instance, uint32_t n_samples)
 {
 	const Amp* amp = (const Amp*)instance;
 
-	const float        gain   = *(amp->gain);
+	const float gain = *(amp->gain);
+	const float attenuation = *(amp->attenuation);
+	const float input_threshold = *(amp->input_threshold);
 	const float* const input  = amp->input;
 	float* const       output = amp->output;
 
