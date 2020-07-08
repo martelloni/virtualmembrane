@@ -5,6 +5,9 @@
 PYTHON_LIB_NAME=DSPPythonWrapper
 # Test executable target name
 TARGET_NAME=main
+# Name of the LV2 plugin
+PLUGIN_NAME=amp
+PLUGIN_DIR=plugin/eg-amp.lv2
 
 ### Common/default options ###
 
@@ -13,7 +16,7 @@ SRC_DIR ?= ./src
 OBJ_DIR = ./build
 
 SRCS := $(shell find $(SRC_DIR) -type f \( \( -name '*.s' -or -name '*.c' -or -name '*.cpp' \) ! -path '*bela*' \) )
-python: SRCS += $(shell find $(SRC_DIR) -name '$(PYTHON_LIB_NAME)*')
+
 OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)
 
@@ -21,7 +24,7 @@ DEPS := $(OBJS:.o=.d)
 INC_DIRS := include src
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-# Change if you fancy using Clang
+# C++ options
 CC := g++
 CFLAGS := -Wall -c -fPIC -MMD -MP -std=c++11 -ggdb
 CInc := $(INC_FLAGS)
@@ -54,6 +57,11 @@ CATCH2_HEADER_LOCATION := /catch2
 CATCH2_BUILD_FLAG := CATCH2_TEST
 
 
+### LV2 PLUGIN BUILDS ###
+LV2_INCLUDE_LOCATION := /lv2
+LV2_BUILD_FLAG := LV2_PLUGIN
+
+
 python: CFLAGS += -D$(PYTHON_EXT_MACRO)
 python: CInc += -I$(BOOST_INC) -I$(PYTHON_INC) 
 python: CLinkFlags = -shared -Wl,-soname,$@ -Wl,-rpath,$(BOOST_LIB_LOCATION) -L$(BOOST_LIB_LOCATION) -l$(BOOST_LIB_FILE) -l$(BOOST_NUMPY_FILE)
@@ -62,6 +70,10 @@ test: CInc += -I$(CATCH2_HEADER_LOCATION)
 test: CFLAGS += -D$(CATCH2_BUILD_FLAG)
 test: $(TARGET_NAME)
 
+lv2: CFLAGS += -D$(LV2_BUILD_FLAG)
+lv2: CInc += -I$(LV2_INCLUDE_LOCATION) 
+lv2: CLinkFlags = -shared -Wl,-soname,$@
+
 PHONY: all
 all: $(TARGET_NAME)
 
@@ -69,6 +81,9 @@ $(TARGET_NAME): $(OBJS)
 	$(CC) $^ $(CLinkFlagsExec) -o $@
 
 python: $(PYTHON_LIB_NAME).so
+
+lv2: $(PLUGIN_NAME).so
+	cp $(PLUGIN_NAME).so $(PLUGIN_DIR)
 
 %.so: $(OBJS)
 	$(CC) $^ $(CLinkFlags) -o $@

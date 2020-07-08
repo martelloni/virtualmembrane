@@ -19,20 +19,17 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /catch2
 RUN wget https://raw.githubusercontent.com/catchorg/Catch2/master/single_include/catch2/catch.hpp
 
-# Setup GDB debug over SSH
-#RUN apt-get install -y \
-#    openssh-server rsync zip
+# LV2 plugin SDK
+RUN apt-get install -y \
+    python3-pip git
+RUN python3 -m pip install waf
+RUN git clone https://gitlab.com/lv2/lv2.git /lv2
 
-#RUN echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
-#&& \
-#    echo 'PermitEmptyPasswords yes' >> /etc/ssh/sshd_config && \
-#    echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config && \
-#    ssh-keygen -A
-
-#EXPOSE 22
-
-# Passwordless root!
-#RUN echo 'root:' | chpasswd
+WORKDIR /lv2
+#RUN wget https://gitlab.com/lv2/lv2/-/archive/v1.18.0/lv2-v1.18.0.tar.bz2
+#RUN tar jxf lv2-v1.18.0.tar.bz2
+RUN git checkout v1.18.0
+RUN git submodule update --init --recursive
 
 # Launch SSH debugger
 RUN apt-get update && apt-get install -y openssh-server
