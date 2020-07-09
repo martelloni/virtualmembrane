@@ -27,7 +27,6 @@
 
 extern "C" {
 
-
 #include "lv2/core/lv2.h"
 
 /** Include standard C headers */
@@ -43,6 +42,41 @@ extern "C" {
    in the data files, the host will fail to load the plugin.
 */
 #define AMP_URI "http://lv2plug.in/plugins/eg-amp"
+
+static LV2_Handle
+instantiate(const LV2_Descriptor*     descriptor,
+            double                    rate,
+            const char*               bundle_path,
+            const LV2_Feature* const* features);
+
+static void
+connect_port(LV2_Handle instance,
+             uint32_t   port,
+             void*      data);
+
+static void
+activate(LV2_Handle instance);
+
+static void
+run(LV2_Handle instance, uint32_t n_samples);
+
+static void
+deactivate(LV2_Handle instance);
+
+static void
+cleanup(LV2_Handle instance);
+
+static const void*
+extension_data(const char* uri);
+
+LV2_SYMBOL_EXPORT
+const LV2_Descriptor*
+lv2_descriptor(uint32_t index);
+
+}  // extern "C"
+
+#include "Triangular2DMesh.hpp"
+
 
 /**
    In code, ports are referred to by index.  An enumeration of port indices
@@ -63,6 +97,8 @@ typedef enum {
    stored, since there is no additional instance data.
 */
 typedef struct {
+   Triangular2DMesh *mesh_ptr;
+   char *meshmem_ptr;
 	// Port buffers
    const float* attenuation;
    const float* input_threshold;
@@ -70,6 +106,12 @@ typedef struct {
 	const float* input;
 	float*       output;
 } Amp;
+
+Triangular2DMesh::Properties mesh_properties {
+   60.f,
+   60.f,
+   9.f,
+};
 
 /**
    The `instantiate()` function is called by the host to create a new plugin
@@ -88,6 +130,10 @@ instantiate(const LV2_Descriptor*     descriptor,
             const LV2_Feature* const* features)
 {
 	Amp* amp = (Amp*)calloc(1, sizeof(Amp));
+
+   // Allocate and instantiate mesh
+   amp->meshmem_ptr = new char[Triangular2DMesh::GetMemSize(mesh_properties)];
+   amp->mesh_ptr = new Triangular2DMesh(mesh_properties, amp->meshmem_ptr);
 
 	return (LV2_Handle)amp;
 }
@@ -138,6 +184,8 @@ connect_port(LV2_Handle instance,
 static void
 activate(LV2_Handle instance)
 {
+	const Amp* amp = (const Amp*)instance;
+   amp->mesh_ptr->Reset();
 }
 
 /** Define a macro for converting a gain in dB to a coefficient. */
@@ -161,9 +209,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float* const       output = amp->output;
 
 	const float coef = DB_CO(gain);
+   amp->mesh_ptr->SetAttenuation(attenuation);
 
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
-		output[pos] = input[pos] * coef;
+		output[pos] = coef * amp->mesh_ptr->ProcessSample(true, input[pos]);
 	}
 }
 
@@ -192,6 +241,9 @@ deactivate(LV2_Handle instance)
 static void
 cleanup(LV2_Handle instance)
 {
+   const Amp* amp = (const Amp*)instance;
+   delete amp->mesh_ptr;
+   delete amp->meshmem_ptr;
 	free(instance);
 }
 
@@ -246,7 +298,5 @@ lv2_descriptor(uint32_t index)
 	default: return NULL;
 	}
 }
-
-}  // extern "C"
 
 #endif  // defined(LV2_PLUGIN)
