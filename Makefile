@@ -26,7 +26,9 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 # C++ options
 CC := g++
-CFLAGS := -Wall -c -fPIC -MMD -MP -std=c++11 -ggdb
+CFLAGS := -Wall -c -fPIC -MMD -MP -std=c++11
+CFLAGS_DEBUG := -ggdb
+CFLAGS_PERF := -O3 -msse2
 CInc := $(INC_FLAGS)
 
 CLinkFlagsExec =
@@ -62,15 +64,15 @@ LV2_INCLUDE_LOCATION := /lv2
 LV2_BUILD_FLAG := LV2_PLUGIN
 
 
-python: CFLAGS += -D$(PYTHON_EXT_MACRO)
+python: CFLAGS += $(CFLAGS_DEBUG) -D$(PYTHON_EXT_MACRO)
 python: CInc += -I$(BOOST_INC) -I$(PYTHON_INC) 
 python: CLinkFlags = -shared -Wl,-soname,$@ -Wl,-rpath,$(BOOST_LIB_LOCATION) -L$(BOOST_LIB_LOCATION) -l$(BOOST_LIB_FILE) -l$(BOOST_NUMPY_FILE)
 
 test: CInc += -I$(CATCH2_HEADER_LOCATION)
-test: CFLAGS += -D$(CATCH2_BUILD_FLAG)
+test: CFLAGS += $(CFLAGS_DEBUG) -D$(CATCH2_BUILD_FLAG)
 test: $(TARGET_NAME)
 
-lv2: CFLAGS += -D$(LV2_BUILD_FLAG)
+lv2: CFLAGS += $(CFLAGS_PERF) -D$(LV2_BUILD_FLAG)
 lv2: CInc += -I$(LV2_INCLUDE_LOCATION) 
 lv2: CLinkFlags = -shared -Wl,-soname,$@
 

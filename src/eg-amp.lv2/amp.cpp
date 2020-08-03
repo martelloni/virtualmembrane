@@ -108,9 +108,9 @@ typedef struct {
 } Amp;
 
 Triangular2DMesh::Properties mesh_properties {
-   60.f,
-   60.f,
-   9.f,
+   300.f,
+   300.f,
+   10.f,
 };
 
 /**
