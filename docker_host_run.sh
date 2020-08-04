@@ -1,6 +1,6 @@
 #!/bin/sh
 
-docker stop assignment3vscode
-docker rm assignment3vscode
-docker build -t assignment3:latest -f Dockerfile .
-docker run -d -p 2222:22 --security-opt seccomp:unconfined -v /home/virgult/Dropbox/QMUL/MAP/assignment3:/src --name assignment3vscode assignment3
+docker stop virtualmembranevscode
+docker rm virtualmembranevscode
+docker build -t virtualmembrane:latest -f Dockerfile .
+docker run -d -p 2222:22 --security-opt seccomp:unconfined -v `pwd`:/src --name virtualmembranevscode virtualmembrane

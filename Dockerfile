@@ -48,4 +48,4 @@ EXPOSE 22
 CMD ["/usr/sbin/sshd", "-D"]
 
 
-LABEL Name=assignment3 Version=0.0.1
+LABEL Name=virtualmembrane Version=0.0.1
