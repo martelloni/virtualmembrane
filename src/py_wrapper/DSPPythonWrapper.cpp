@@ -15,7 +15,7 @@
 #include <boost/python/numpy.hpp>
 #include <cassert>
 // Include user libraries here
-#include "Triangular2DMesh.hpp"
+#include "mesh/Triangular2DMesh.hpp"
 #include "Geometries.hpp"
 #include "WrapperUtils.hpp"
 

@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set up C++ build environment
 RUN apt-get update && apt-get install -y \
     gcc g++ gdb make \
-    python3-numpy python3-scipy python3-matplotlib jupyter-notebook \
+    python3-numpy python3-scipy python3-matplotlib jupyter-notebook python3-pandas \
     libboost-python-dev libboost-numpy-dev libboost-dev build-essential zlib1g-dev \
     libboost-system-dev libboost-program-options-dev \
     wget

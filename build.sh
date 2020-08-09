@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cd /src && make clean && make lv2
+cd /src && make clean && make test

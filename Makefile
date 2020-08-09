@@ -63,11 +63,12 @@ CATCH2_BUILD_FLAG := CATCH2_TEST
 LV2_INCLUDE_LOCATION := /lv2
 LV2_BUILD_FLAG := LV2_PLUGIN
 
-
-python: CFLAGS += $(CFLAGS_DEBUG) -D$(PYTHON_EXT_MACRO)
+# All python-specific flags
+python: CFLAGS += $(CFLAGS_PERF) -D$(PYTHON_EXT_MACRO)
 python: CInc += -I$(BOOST_INC) -I$(PYTHON_INC) 
 python: CLinkFlags = -shared -Wl,-soname,$@ -Wl,-rpath,$(BOOST_LIB_LOCATION) -L$(BOOST_LIB_LOCATION) -l$(BOOST_LIB_FILE) -l$(BOOST_NUMPY_FILE)
 
+# All python
 test: CInc += -I$(CATCH2_HEADER_LOCATION)
 test: CFLAGS += $(CFLAGS_DEBUG) -D$(CATCH2_BUILD_FLAG)
 test: $(TARGET_NAME)
@@ -75,6 +76,11 @@ test: $(TARGET_NAME)
 lv2: CFLAGS += $(CFLAGS_PERF) -D$(LV2_BUILD_FLAG)
 lv2: CInc += -I$(LV2_INCLUDE_LOCATION) 
 lv2: CLinkFlags = -shared -Wl,-soname,$@
+lv2: SRCS_LV2 = $(shell find $(SRC_DIR) -type f \( \( -name '*.s' -or -name '*.c' -or -name '*.cpp' \) -path '*.lv2*' \) )
+lv2: OBJS_LV2 = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS_LV2))
+lv2: SRCS += SRCS_LV2
+lv2: OBJS += OBJS_LV2
+lv2: DEPS += $(OBJS_LV2:.o=.d)
 
 PHONY: all
 all: $(TARGET_NAME)

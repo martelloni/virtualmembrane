@@ -75,7 +75,7 @@ lv2_descriptor(uint32_t index);
 
 }  // extern "C"
 
-#include "Triangular2DMesh.hpp"
+#include "mesh/Triangular2DMesh.hpp"
 
 
 /**

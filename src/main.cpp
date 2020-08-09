@@ -14,7 +14,7 @@
 #define protected public
 
 
-#include "Triangular2DMesh.hpp"
+#include "mesh/Triangular2DMesh.hpp"
 using mesh = Triangular2DMesh;
 
 
