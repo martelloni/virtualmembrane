@@ -152,6 +152,20 @@ void Biquad<n_channels>::SetCoefficients(
     c_[sos_index] = c;
 }
 
-}
+
+class ARSmoother {
+ public:
+    ARSmoother(float alpha_attack, float alpha_release);
+    float ProcessSample(float in);
+    void Reset();
+
+ protected:
+    float alpha_a_;
+    float alpha_r_;
+    float y_1_;
+};
+
+
+}  // namespace DSP
 
 #endif  // _FILTER_HPP_

@@ -33,7 +33,7 @@ class FilterDesigner {
      * @param q_factor Quality factor
      * @param gain Gain of filter (factor applied to B-coefficients)
      */
-    static void ResonantLowpass(BiquadCoeffs *c, float fs,
+    static void ResonantHighpass(BiquadCoeffs *c, float fs,
             float f_cut, float q_factor, float gain);
 
  private:

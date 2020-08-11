@@ -27,20 +27,20 @@ void FilterDesigner::ResonantLowpass(BiquadCoeffs *c, float fs,
 
 void FilterDesigner::ResonantHighpass(BiquadCoeffs *c, float fs,
             float f_cut, float q_factor, float gain) {
-    float omega = 2 * M_PI * f_cut;
+    float omega = 2.f * M_PI * f_cut;
     float omega_2 = omega * omega;
-    float q = 1. / q_factor;
+    float q = 1.f / q_factor;
     float omega_q = omega * q;
-    float bfactor_highpass = 4 * fs * fs;
+    float bfactor_highpass = 4.f * fs * fs;
 
-    float b[3] {1. * bfactor_highpass,
-        -2. * bfactor_highpass,
-        1. * bfactor_highpass};
+    float b[3] {1.f * bfactor_highpass,
+        -2.f * bfactor_highpass,
+        1.f * bfactor_highpass};
 
     float a[3] {
-        2. * fs * (2. * fs + omega_q) + omega_2,
-        -8. * fs * fs + 2. * omega_2,
-        2. * fs * (2. * fs - omega_q) + omega_2};
+        2.f * fs * (2.f * fs + omega_q) + omega_2,
+        -8.f * fs * fs + 2.f * omega_2,
+        2.f * fs * (2.f * fs - omega_q) + omega_2};
 
     ScaleByA0(b, a, gain, c);
 }
