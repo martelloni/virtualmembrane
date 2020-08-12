@@ -10,6 +10,7 @@
 			"memory": "cpp",
 			"sstream": "cpp",
 			"random": "cpp"
-		}
+		},
+		"C_Cpp.default.defines": ["CATCH2_TEST", "LV2_PLUGIN"]
 	}
 }

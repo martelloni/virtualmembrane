@@ -8,10 +8,6 @@
 
 namespace DSP {
 
-#define __LOOP_THROUGH_BLOCK(statement)    \
-    unsigned int n = n_channels * n_samples; while (n-- > 0) { statement; }
-
-
 void Block::Copy(float *dest, float *src, unsigned int n_channels, unsigned int n_samples) {
 #if __USE_STDLIB
     memcpy(dest, src, sizeof(float) * n_channels * n_samples);
@@ -52,11 +48,6 @@ void Block::AccumGain(float *buffer, float *accum, float gain, unsigned int n_ch
 
 void Block::Mix(float *buffer, float *buffer2, float gain1, float gain2, unsigned int n_channels, unsigned int n_samples) {
     __LOOP_THROUGH_BLOCK(*buffer = (*buffer) * gain1 + (*buffer2++) * gain2; buffer++);
-}
-
-
-void Block::ApplyFn(float *buffer, pBlockProcessFn fn, unsigned int n_channels, unsigned int n_samples) {
-    __LOOP_THROUGH_BLOCK(*buffer = fn(*buffer); buffer++);
 }
 
 #undef __LOOP_THROUGH_BLOCK

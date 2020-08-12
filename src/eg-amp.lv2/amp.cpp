@@ -76,6 +76,8 @@ lv2_descriptor(uint32_t index);
 }  // extern "C"
 
 #include "mesh/Triangular2DMesh.hpp"
+#include "dsp/Filter.hpp"
+#include "dsp/FilterDesigner.hpp"
 
 
 /**
@@ -97,8 +99,16 @@ typedef enum {
    stored, since there is no additional instance data.
 */
 typedef struct {
-   Triangular2DMesh *mesh_ptr;
+   // Audio plugin structure
    char *meshmem_ptr;
+   Triangular2DMesh *mesh_ptr;
+   DSP::BiquadCoeffs crossover_lpf_c;
+   DSP::BiquadCoeffs crossover_hpf_c;
+   DSP::Biquad<1>::State *crossover_lpf_s;
+   DSP::Biquad<1>::State *crossover_hpf_s;
+   DSP::Biquad<1> *crossover_lpf;
+   DSP::Biquad<1> *crossover_hpf;
+   DSP::ARSmoother *ar_smoother;
 	// Port buffers
    const float* attenuation;
    const float* input_threshold;
@@ -134,6 +144,23 @@ instantiate(const LV2_Descriptor*     descriptor,
    // Allocate and instantiate mesh
    amp->meshmem_ptr = new char[Triangular2DMesh::GetMemSize(mesh_properties)];
    amp->mesh_ptr = new Triangular2DMesh(mesh_properties, amp->meshmem_ptr);
+
+   // Filter design/allocation
+   const float fcut = 100.f;
+   DSP::FilterDesigner::ResonantLowpass(&amp->crossover_lpf_c, rate, fcut, 0.5f, 1.f);
+   amp->crossover_lpf_s = new DSP::Biquad<1>::State[1];
+   amp->crossover_lpf = new DSP::Biquad<1>(1, &amp->crossover_lpf_c,
+         amp->crossover_lpf_s);
+
+   DSP::FilterDesigner::ResonantHighpass(&amp->crossover_hpf_c, rate, fcut, 0.5f, 1.f);
+   amp->crossover_hpf_s = new DSP::Biquad<1>::State[1];
+   amp->crossover_hpf = new DSP::Biquad<1>(1, &amp->crossover_hpf_c,
+         amp->crossover_hpf_s);
+
+   // Smoother design/allocation
+   const float alpha_a = 0.01;
+   const float alpha_r = 0.001;
+   amp->ar_smoother = new DSP::ARSmoother(alpha_a, alpha_r);
 
 	return (LV2_Handle)amp;
 }
@@ -186,6 +213,9 @@ activate(LV2_Handle instance)
 {
 	const Amp* amp = (const Amp*)instance;
    amp->mesh_ptr->Reset();
+   amp->crossover_lpf->Reset();
+   amp->crossover_hpf->Reset();
+   amp->ar_smoother->Reset();
 }
 
 /** Define a macro for converting a gain in dB to a coefficient. */
@@ -202,17 +232,39 @@ run(LV2_Handle instance, uint32_t n_samples)
 {
 	const Amp* amp = (const Amp*)instance;
 
+   // Parameter retrieval
 	const float gain = *(amp->gain);
 	const float attenuation = *(amp->attenuation);
 	const float input_threshold = *(amp->input_threshold);
 	const float* const input  = amp->input;
 	float* const       output = amp->output;
 
+   // Pass parameters
 	const float coef = DB_CO(gain);
    amp->mesh_ptr->SetAttenuation(attenuation);
 
+   // Per sample execution
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
-		output[pos] = coef * amp->mesh_ptr->ProcessSample(true, input[pos]);
+      float x, y;
+      x = input[pos];
+      y = x;
+      // Crossover
+      amp->crossover_hpf->ProcessFrame(&x);
+      amp->crossover_lpf->ProcessFrame(&x);
+      // Signal conditioning
+      x = std::abs(x);
+      x = amp->ar_smoother->ProcessSample(x);
+      x -= input_threshold;  // Subtract threshold and rectify
+      if (x < 0) {
+         x = 0;
+      }
+      // White noise!
+      float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+      x = r * x;
+      // Mesh execution
+		x = coef * amp->mesh_ptr->ProcessSample(true, x);
+      // Mix back
+      output[pos] = x + y;
 	}
 }
 
@@ -244,6 +296,11 @@ cleanup(LV2_Handle instance)
    const Amp* amp = (const Amp*)instance;
    delete amp->mesh_ptr;
    delete amp->meshmem_ptr;
+   delete amp->crossover_hpf;
+   delete amp->crossover_hpf_s;
+   delete amp->crossover_lpf;
+   delete amp->crossover_lpf_s;
+   delete amp->ar_smoother;
 	free(instance);
 }
 

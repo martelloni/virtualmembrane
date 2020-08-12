@@ -1,6 +1,11 @@
 #ifndef _BLOCK_HPP_
 #define _BLOCK_HPP_
 
+
+#define __LOOP_THROUGH_BLOCK(statement)    \
+    unsigned int n = n_channels * n_samples; while (n-- > 0) { statement; }
+
+
 namespace DSP {
 
 /**
@@ -91,7 +96,12 @@ class Block {
      * @param n_channels 
      * @param n_samples 
      */
-    static void ApplyFn(float *buffer, pBlockProcessFn fn, unsigned int n_channels, unsigned int n_samples);
+    template<typename FN_T>
+    static void ApplyFn(float *buffer, FN_T fn,
+        unsigned int n_channels,
+        unsigned int n_samples) {
+        __LOOP_THROUGH_BLOCK(*buffer = fn(*buffer); buffer++);
+    }
 };
 
 }

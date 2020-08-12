@@ -17,6 +17,9 @@
 #include "mesh/Triangular2DMesh.hpp"
 using mesh = Triangular2DMesh;
 
+#include "dsp/Filter.hpp"
+using arsmoother = DSP::ARSmoother;
+
 
 TEST_CASE( "Check dimensions", "[Triangular2DMesh]" ) {
 
@@ -165,6 +168,28 @@ TEST_CASE( "Process 1D impulse (transversal)", "[Triangular2DMesh]" ) {
     delete mem;
 
 }
+
+
+TEST_CASE("Just check filter's doing something", "[ARSmoother]") {
+    unsigned int n;
+
+    arsmoother smoother(0.1f, 0.01f);
+
+    for (n = 0; n < 10; n++) {
+        float x = smoother.ProcessSample(1.f);
+        CHECK(x < 1.f);
+    }
+    for (n = 0; n < 10; n++) {
+        float x = smoother.ProcessSample(0.f);
+        CHECK(x > 0.f);
+    }
+    smoother.Reset();
+    for (n = 0; n < 10; n++) {
+        float x = smoother.ProcessSample(0.f);
+        CHECK(x == 0.f);
+    }
+}
+
 
 #endif  // defined(CATCH2_TEST)
 
