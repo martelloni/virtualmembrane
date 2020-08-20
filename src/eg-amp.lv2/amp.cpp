@@ -242,6 +242,7 @@ run(LV2_Handle instance, uint32_t n_samples)
    // Pass parameters
 	const float coef = DB_CO(gain);
    amp->mesh_ptr->SetAttenuation(attenuation);
+   const float thresh = DB_CO(input_threshold);
 
    // Per sample execution
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
@@ -249,22 +250,25 @@ run(LV2_Handle instance, uint32_t n_samples)
       x = input[pos];
       y = x;
       // Crossover
-      amp->crossover_hpf->ProcessFrame(&x);
+      amp->crossover_hpf->ProcessFrame(&y);
       amp->crossover_lpf->ProcessFrame(&x);
       // Signal conditioning
       x = std::abs(x);
       x = amp->ar_smoother->ProcessSample(x);
-      x -= input_threshold;  // Subtract threshold and rectify
+      x -= thresh;  // Subtract threshold and rectify
       if (x < 0) {
          x = 0;
       }
       // White noise!
       float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+      r *= 2.f;
+      r -= 1.f;
       x = r * x;
       // Mesh execution
 		x = coef * amp->mesh_ptr->ProcessSample(true, x);
       // Mix back
-      output[pos] = x + y;
+      //output[pos] = x + y;
+      output[pos] = x;
 	}
 }
 
